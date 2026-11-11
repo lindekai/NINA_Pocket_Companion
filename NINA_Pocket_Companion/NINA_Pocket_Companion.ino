@@ -1,0 +1,541 @@
+/*
+ N.I.N.A. Pocket Companion 0.1 - READ ONLY
+ Copyright (c) 2026 Kai Linde - MIT License, see LICENSE.
+ Target: classic LilyGO TTGO T-Display ESP32, portrait 135x240 ST7789.
+ Arduino IDE / Adafruit ST7735 and ST7789 Library / Adafruit GFX / ArduinoJson 7.
+ All HTTP traffic consists solely of GET requests to N.I.N.A. Advanced API.
+ No remote control commands are included.
+*/
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WiFiClient.h>
+#include <ArduinoJson.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
+#include <SPI.h>
+#include <Preferences.h>
+#include <lwip/sockets.h>
+#include <time.h>
+#include <math.h>
+
+// ------------------ CONFIGURE HERE ------------------
+const char *WIFI_SSID = "YOUR_WIFI_SSID";
+const char *WIFI_PASS = "YOUR_WIFI_PASSWORD";
+// N.I.N.A. PC LAN IP, not localhost. Empty = auto-discover on the local /24 network.
+const char *NINA_HOST = "";
+const uint16_t NINA_PORT = 1888;
+// Observatory coordinates (example placeholder; MUST replace for altitude plot):
+const double SITE_LAT_DEG = NAN;
+const double SITE_LON_DEG = NAN; // East positive, e.g. Berlin +13.4
+const bool DEMO_MODE = false;   // Set true to test screens without N.I.N.A.
+const uint32_t POLL_MS = 8000;
+// ----------------------------------------------------
+
+#define TFT_CS 5
+#define TFT_DC 16
+#define TFT_RST 23
+#define TFT_SCLK 18
+#define TFT_MOSI 19
+#define TFT_BL 4
+#define BTN_NEXT 0   // lower left (BOOT), avoid pressing during reset
+#define BTN_PAGE 35  // lower right, pull-up located on board
+#define W 135
+#define H 240
+
+Adafruit_ST7789 tft(TFT_CS, TFT_DC, TFT_RST);
+// Pages are drawn into an off-screen canvas and pushed in one go (no flicker).
+// Falls back to drawing directly on the TFT if the 64 KB buffer can't be allocated.
+GFXcanvas16 *canvas=nullptr;
+Adafruit_GFX *gfx=&tft;
+const uint16_t BG=0x0006, PANEL=0x084D, CYAN=0x07FF, GREEN=0x07E0,
+               YELLOW=0xFFE0, WHITE=0xFFFF, GRAY=0xA514, RED=0xF800, BLUE=0x241F;
+enum Page { HOME, SYSTEM, SESSION, CAMERA, GUIDING, FILTER, OBJECT, ALTITUDE, ABOUT, PAGE_COUNT };
+Page page = HOME;
+uint32_t lastPoll=0, lastDraw=0, lastWiFiTry=0;
+uint8_t navCursor=0;
+bool dirty=true;
+
+struct Telemetry {
+ bool api=false, camera=false, mount=false, guider=false, wheel=false, focuser=false;
+ bool running=false, hasRunning=false, parked=false, hasParked=false;
+ bool hasTemp=false, hasTargetTemp=false, hasRms=false, hasAlt=false, hasAz=false;
+ bool hasRaDec=false, hasExposure=false, hasProgress=false;
+ bool stale=false; // last known values kept while N.I.N.A./WiFi is unreachable
+ double temp=0, targetTemp=0, rms=0, alt=0, az=0, raHours=0, decDeg=0;
+ int completed=-1, total=-1;
+ double exposureSec=0;
+ String filter="--", target="--", sequence="--", cameraName="--";
+ String message="Keine Daten";
+} data;
+
+String getString(JsonVariantConst v, const char* key, const String &fallback="") {
+ JsonVariantConst f=v[key];
+ if(f.isNull()) return fallback;
+ if(f.is<const char*>()) return String(f.as<const char*>());
+ return fallback;
+}
+bool getNumber(JsonVariantConst v, const char *key, double &out) {
+ JsonVariantConst f=v[key];
+ if(f.isNull()) return false;
+ if(f.is<double>() || f.is<float>() || f.is<int>() || f.is<long>()) { out=f.as<double>(); return isfinite(out); }
+ return false;
+}
+bool getBoolean(JsonVariantConst v, const char *key, bool &out) {
+ JsonVariantConst f=v[key]; if(f.isNull()) return false;
+ if(f.is<bool>()) {out=f.as<bool>(); return true;}
+ return false;
+}
+// Advanced API usually wraps payload in Response; tolerate both shapes.
+JsonVariantConst payload(JsonDocument &doc) {
+ JsonVariantConst root=doc.as<JsonVariantConst>();
+ JsonVariantConst r=root["Response"];
+ if(!r.isNull()) return r;
+ return root;
+}
+// Returns the HTTP status (200 = parsed OK), a negative value on transport errors,
+// or 0 if the body was not valid JSON.
+int httpGetJson(const String &host, const String &endpoint, JsonDocument &doc) {
+ WiFiClient client;
+ HTTPClient http;
+ String url="http://"+host+":"+String(NINA_PORT)+"/v2/api/"+endpoint;
+ http.setConnectTimeout(1500);
+ http.setTimeout(1800);
+ http.useHTTP10(true); // no chunked transfer encoding, so getStream() is plain JSON
+ if(!http.begin(client,url)) return -1;
+ int code=http.GET(); // ONLY HTTP method used in entire application
+ if(code!=200) {http.end(); return code;}
+ DeserializationError err=deserializeJson(doc,http.getStream());
+ http.end();
+ return err?0:200;
+}
+String ninaHost=NINA_HOST; // active host; filled by discovery when NINA_HOST is empty
+bool autoHost() { return strlen(NINA_HOST)==0; }
+// Set on a transport error (host down, refused, timeout); skips the remaining
+// requests of the current poll so the buttons stay responsive.
+bool ninaDown=false;
+bool apiGet(const String &endpoint, JsonDocument &doc) {
+ if(WiFi.status()!=WL_CONNECTED || DEMO_MODE || ninaDown || !ninaHost.length()) return false;
+ int code=httpGetJson(ninaHost,endpoint,doc);
+ if(code<0) ninaDown=true;
+ return code==200;
+}
+
+// ---------- Auto-discovery ----------
+// Probes NINA_PORT on every address of the own /24 network with non-blocking TCP
+// connects (a batch per loop() pass), then confirms open ports with a read-only GET.
+const int SCAN_BATCH=8;              // parallel sockets (lwIP allows ~16 in total)
+const uint32_t SCAN_WAIT_MS=250;     // per batch; LAN hosts answer within a few ms
+const uint32_t RESCAN_MS=60000;      // minimum pause between two scans
+const uint8_t RESCAN_AFTER_FAILS=3;  // failed polls before the known host is re-searched
+Preferences prefs;
+bool scanning=false;
+uint32_t scanBase=0, lastScanStart=0;
+uint16_t scanNext=1;
+uint8_t scanOwn=0, failedPolls=0;
+bool pollNow=false;
+
+bool isNina(const String &host) {
+ JsonDocument doc;
+ if(httpGetJson(host,"version",doc)==200 && doc["Success"].is<bool>() && doc["Success"].as<bool>()) return true;
+ doc.clear();
+ return httpGetJson(host,"equipment/camera/info",doc)==200 && doc["Success"].is<bool>();
+}
+void startScan() {
+ IPAddress ip=WiFi.localIP();
+ scanBase=((uint32_t)ip[0]<<24)|((uint32_t)ip[1]<<16)|((uint32_t)ip[2]<<8);
+ scanOwn=ip[3]; scanNext=1; scanning=true; lastScanStart=millis(); dirty=true;
+}
+void foundNina(const String &host) {
+ scanning=false; failedPolls=0;
+ if(host!=ninaHost){ninaHost=host;prefs.putString("host",host);}
+ pollNow=true; dirty=true;
+}
+void scanStep() {
+ int fds[SCAN_BATCH]; uint8_t hosts[SCAN_BATCH]; int n=0;
+ while(n<SCAN_BATCH && scanNext<=254){
+  uint8_t h=scanNext;
+  if(h==scanOwn){scanNext++;continue;}
+  int s=socket(AF_INET,SOCK_STREAM,0);
+  if(s<0) break; // out of sockets: try remaining hosts in the next pass
+  scanNext++;
+  fcntl(s,F_SETFL,fcntl(s,F_GETFL,0)|O_NONBLOCK);
+  sockaddr_in a={}; a.sin_family=AF_INET; a.sin_port=htons(NINA_PORT);
+  a.sin_addr.s_addr=htonl(scanBase|h);
+  connect(s,(sockaddr*)&a,sizeof(a));
+  fds[n]=s; hosts[n]=h; n++;
+ }
+ bool open[SCAN_BATCH]={}, done[SCAN_BATCH]={};
+ uint32_t t0=millis();
+ int pending=n;
+ while(pending>0 && millis()-t0<SCAN_WAIT_MS){
+  fd_set wr; FD_ZERO(&wr); int maxfd=-1;
+  for(int i=0;i<n;i++) if(!done[i]){FD_SET(fds[i],&wr); if(fds[i]>maxfd) maxfd=fds[i];}
+  uint32_t left=SCAN_WAIT_MS-(millis()-t0);
+  timeval tv={0,(long)left*1000};
+  if(select(maxfd+1,nullptr,&wr,nullptr,&tv)<=0) break;
+  for(int i=0;i<n;i++) if(!done[i] && FD_ISSET(fds[i],&wr)){
+   int err=0; socklen_t len=sizeof(err);
+   getsockopt(fds[i],SOL_SOCKET,SO_ERROR,&err,&len);
+   open[i]=(err==0); done[i]=true; pending--;
+  }
+ }
+ for(int i=0;i<n;i++) close(fds[i]);
+ for(int i=0;i<n;i++) if(open[i]){
+  String host=IPAddress(scanBase>>24,(scanBase>>16)&0xFF,(scanBase>>8)&0xFF,hosts[i]).toString();
+  if(isNina(host)){foundNina(host);return;}
+ }
+ if(scanNext>254) scanning=false;
+ if(page==HOME||page==ABOUT) dirty=true; // progress display
+}
+int scanPercent(){ return (scanNext-1)*100/254; }
+void parseCamera(JsonVariantConst v) {
+ bool b;
+ if(getBoolean(v,"Connected",b)) data.camera=b;
+ data.cameraName=getString(v,"Name",data.cameraName);
+ data.hasTemp=getNumber(v,"Temperature",data.temp) || getNumber(v,"CCDTemperature",data.temp);
+ data.hasTargetTemp=getNumber(v,"TargetTemp",data.targetTemp);
+}
+void parseMount(JsonVariantConst v) {
+ bool b;
+ if(getBoolean(v,"Connected",b)) data.mount=b;
+ if(getBoolean(v,"AtPark",b) || getBoolean(v,"Parked",b)) {data.parked=b;data.hasParked=true;}
+ data.hasAlt=getNumber(v,"Altitude",data.alt);
+ data.hasAz=getNumber(v,"Azimuth",data.az);
+ double ra=0, dec=0;
+ // API versions may supply numeric RA/Dec or nested coordinate objects.
+ bool r=getNumber(v,"RightAscension",ra);
+ bool d=getNumber(v,"Declination",dec);
+ if(!r) r=getNumber(v["Coordinates"],"RA",ra);
+ if(!d) d=getNumber(v["Coordinates"],"Dec",dec);
+ if(r && d && ra>=0 && ra<=24 && dec>=-90 && dec<=90) {
+   data.raHours=ra; data.decDeg=dec; data.hasRaDec=true;
+ }
+}
+void parseGuider(JsonVariantConst v) {
+ bool b;
+ if(getBoolean(v,"Connected",b)) data.guider=b;
+ data.hasRms=getNumber(v,"RMSTotal",data.rms) || getNumber(v,"RMS",data.rms)
+             || getNumber(v["RMS"],"Total",data.rms);
+}
+void parseFilter(JsonVariantConst v) {
+ bool b; if(getBoolean(v,"Connected",b)) data.wheel=b;
+ data.filter=getString(v,"SelectedFilter",data.filter);
+ if(data.filter=="--") data.filter=getString(v["SelectedFilter"],"Name",data.filter);
+ if(data.filter=="--") data.filter=getString(v["Filter"],"Name",data.filter);
+}
+void parseSequence(JsonVariantConst v) {
+ bool b;
+ if(getBoolean(v,"IsRunning",b) || getBoolean(v,"Running",b)) {
+   data.running=b; data.hasRunning=true;
+ }
+ String state=getString(v,"State","");
+ if(state.length()) {
+  String low=state;low.toLowerCase();
+  data.running=low=="running" || low=="executing"; data.hasRunning=true;
+ }
+ data.target=getString(v,"TargetName",data.target);
+ data.sequence=getString(v,"Name",data.sequence);
+ double n;
+ if(getNumber(v,"CompletedExposures",n)) data.completed=(int)n;
+ if(getNumber(v,"TotalExposures",n)) data.total=(int)n;
+ if(getNumber(v,"ExposureTime",n)) {data.exposureSec=n;data.hasExposure=true;}
+}
+void demoData(){
+ data.api=true;data.camera=data.mount=data.guider=data.wheel=data.focuser=true;
+ data.running=true;data.hasRunning=true;data.hasParked=true;data.parked=false;
+ data.hasTemp=data.hasTargetTemp=data.hasRms=data.hasAlt=data.hasAz=data.hasRaDec=true;
+ data.temp=-9.8;data.targetTemp=-10;data.rms=0.52;
+ data.alt=62.3;data.az=314.8;data.raHours=23.345;data.decDeg=61.216;
+ data.filter="Ha 7nm";data.target="NGC 7635";data.sequence="Demo-Sequenz";
+ data.cameraName="ToupTek";data.completed=42;data.total=120;data.exposureSec=300;data.hasExposure=true;
+ data.message="DEMO - keine Live-Daten";
+}
+void fetchAll() {
+ ninaDown=false;
+ JsonDocument doc;
+ if(apiGet("equipment/camera/info",doc)){data.api=true;parseCamera(payload(doc));}
+ doc.clear();
+ if(apiGet("equipment/mount/info",doc)){data.api=true;parseMount(payload(doc));}
+ doc.clear();
+ if(apiGet("equipment/guider/info",doc)){data.api=true;parseGuider(payload(doc));}
+ doc.clear();
+ if(apiGet("equipment/filterwheel/info",doc)){data.api=true;parseFilter(payload(doc));}
+ doc.clear();
+ if(apiGet("equipment/focuser/info",doc)){
+   data.api=true;bool b;if(getBoolean(payload(doc),"Connected",b))data.focuser=b;
+ }
+ doc.clear();
+ if(apiGet("sequence/state",doc)){data.api=true;parseSequence(payload(doc));}
+}
+void pollNina() {
+ if(DEMO_MODE){data=Telemetry();demoData();dirty=true;return;}
+ Telemetry prev=data;
+ data=Telemetry();
+ bool wifi=WiFi.status()==WL_CONNECTED;
+ if(wifi) fetchAll();
+ if(data.api){
+  data.message="N.I.N.A. verbunden";
+  failedPolls=0;
+ }else{
+  // Keep the last known values instead of blanking the screen; footer marks them as ALT.
+  if(prev.api||prev.stale){data=prev;data.stale=true;}
+  data.api=false;
+  data.message=wifi?"N.I.N.A. nicht erreichbar":"WLAN offline";
+  // In auto mode the N.I.N.A. PC may have received a new DHCP address: search again.
+  if(wifi&&autoHost()){
+   if(failedPolls<255)failedPolls++;
+   bool due=!ninaHost.length()||failedPolls>=RESCAN_AFTER_FAILS;
+   if(due&&!scanning&&(lastScanStart==0||millis()-lastScanStart>=RESCAN_MS))startScan();
+  }
+ }
+ dirty=true;
+}
+void textAt(int x,int y,String s,uint16_t color=WHITE,uint8_t size=1,uint16_t bg=BG) {
+ gfx->setTextColor(color,bg);gfx->setTextSize(size);gfx->setCursor(x,y);gfx->print(s);
+}
+void line(int y){gfx->drawFastHLine(5,y,125,0x19CA);}
+String cut(String s,int maxLen){if((int)s.length()>maxLen)return s.substring(0,maxLen-2)+"..";return s;}
+String yesNo(bool value){return value?"OK":"AUS";}
+void header(String title) {
+ gfx->fillScreen(BG);
+ gfx->fillRect(0,0,W,23,PANEL);
+ textAt(5,7,cut(title,18),CYAN,1,PANEL);
+ gfx->fillCircle(126,11,3,WiFi.status()==WL_CONNECTED?GREEN:RED);
+ line(24);
+}
+void footer(const String &left="NEXT",const String &right="DETAIL") {
+ line(216);textAt(6,224,left,GRAY);textAt(77,224,right,GRAY);
+ if(data.stale)textAt(51,224,"ALT",YELLOW);
+}
+void kv(int y,const String &label,const String &value,uint16_t c=WHITE){
+ textAt(6,y,cut(label,20),GRAY);textAt(6,y+13,cut(value,21),c);line(y+27);
+}
+void row(int y,String label,String val,uint16_t c=WHITE){
+ textAt(6,y,cut(label,12),GRAY);textAt(77,y,cut(val,9),c);line(y+13);
+}
+void drawHome(){
+ header("N.I.N.A. POCKET");
+ textAt(6,37,"Companion",CYAN,2);
+ if(scanning&&!data.api)textAt(6,63,"SUCHE N.I.N.A. "+String(scanPercent())+"%",YELLOW);
+ else textAt(6,63,data.api?"N.I.N.A. ONLINE":"N.I.N.A. OFFLINE",data.api?GREEN:RED);
+ textAt(6,78,DEMO_MODE?"DEMO MODUS":"NUR STATUS/READ-ONLY",YELLOW);
+ const char* names[]={"System","Session","Kamera","Guiding","Filter","Objekt","Hoehenverlauf","Info"};
+ for(int i=0;i<8;i++){
+  int y=99+i*14;
+  if(i==navCursor)gfx->fillRoundRect(3,y-2,129,13,3,PANEL);
+  textAt(8,y,String(i==navCursor?"> ":"  ")+names[i],i==navCursor?YELLOW:WHITE,1,i==navCursor?PANEL:BG);
+ }
+ footer("WEITER","OEFFNEN");
+}
+void drawSystem(){
+ header("SYSTEMSTATUS");
+ textAt(6,34,data.api?"N.I.N.A. verbunden":"Keine Verbindung",data.api?GREEN:RED);
+ textAt(6,48,!data.hasRunning?"Session: unbekannt":(data.running?"Session: AKTIV":"Keine aktive Session"),YELLOW);
+ line(65);
+ row(72,"Kamera",yesNo(data.camera),data.camera?GREEN:GRAY);
+ row(91,"Montierung",!data.mount?"AUS":(data.hasParked&&data.parked?"PARK":"OK"));
+ row(110,"Guiding",yesNo(data.guider),data.guider?GREEN:GRAY);
+ row(129,"Filterrad",yesNo(data.wheel),data.wheel?GREEN:GRAY);
+ row(148,"Fokussierer",yesNo(data.focuser),data.focuser?GREEN:GRAY);
+ row(167,"Filter",data.filter);
+ row(186,"Temp",data.hasTemp?String(data.temp,1)+" C":"--");
+ footer();
+}
+void drawSession(){
+ header("SESSION");
+ textAt(7,37,!data.hasRunning?"Status unbekannt":(data.running?"AUFNAHME AKTIV":"KEINE SESSION"),data.running?GREEN:YELLOW);
+ kv(63,"Objekt",data.target);
+ kv(97,"Sequenz",data.sequence);
+ String frames=(data.completed>=0?String(data.completed):"--")+" / "+(data.total>=0?String(data.total):"--");
+ kv(131,"Frames",frames);
+ kv(165,"Belichtung",data.hasExposure?String(data.exposureSec,0)+" s":"--");
+ footer();
+}
+void drawCamera(){
+ header("KAMERA");
+ textAt(6,36,cut(data.cameraName,18),CYAN);
+ kv(60,"Verbindung",yesNo(data.camera),data.camera?GREEN:GRAY);
+ kv(96,"Ist-Temperatur",data.hasTemp?String(data.temp,1)+" C":"--",CYAN);
+ kv(132,"Soll-Temperatur",data.hasTargetTemp?String(data.targetTemp,1)+" C":"--");
+ footer();
+}
+void drawGuiding(){
+ header("GUIDING");
+ kv(42,"Guider",yesNo(data.guider),data.guider?GREEN:GRAY);
+ kv(84,"Gesamt RMS",data.hasRms?String(data.rms,2)+" arcsec":"--",data.hasRms?GREEN:GRAY);
+ textAt(6,164,"Nur N.I.N.A. Daten",GRAY);
+ footer();
+}
+void drawFilter(){
+ header("FILTERRAD");
+ kv(43,"Verbindung",yesNo(data.wheel),data.wheel?GREEN:GRAY);
+ kv(87,"Aktiver Filter",data.filter,CYAN);
+ textAt(7,166,"Nur Anzeige",GRAY);
+ footer();
+}
+void drawObject(){
+ header("OBJEKT");
+ kv(40,"Ziel",data.target,CYAN);
+ kv(76,"Montierung Hoehe",data.hasAlt?String(data.alt,1)+" Grad":"--");
+ kv(112,"Azimut",data.hasAz?String(data.az,1)+" Grad":"--");
+ kv(148,"Koordinaten",data.hasRaDec?String(data.raHours,2)+" h / "+String(data.decDeg,1):"--");
+ footer();
+}
+// GMST and object altitude, using coordinates from current mount pointing.
+// Display never claims a scheduled N.I.N.A. meridian flip.
+double jdFromUnix(time_t u){return ((double)u)/86400.0+2440587.5;}
+double norm360(double d){d=fmod(d,360.0);return d<0?d+360.0:d;}
+double hourAngleDeg(time_t u,double raHours){
+ double jd=jdFromUnix(u),t=(jd-2451545.0)/36525.0;
+ double gmst=280.46061837+360.98564736629*(jd-2451545.0)+0.000387933*t*t-t*t*t/38710000.0;
+ double ha=norm360(gmst+SITE_LON_DEG-raHours*15.0);
+ return ha>180.0?ha-360.0:ha;
+}
+double altitudeAt(time_t u,double raHours,double decDeg){
+ const double rad=PI/180.0;
+ double ha=hourAngleDeg(u,raHours)*rad,lat=SITE_LAT_DEG*rad,dec=decDeg*rad;
+ double v=sin(lat)*sin(dec)+cos(lat)*cos(dec)*cos(ha);
+ return asin(constrain(v,-1.0,1.0))/rad;
+}
+void drawAltitude(){
+ header("HOEHENVERLAUF");
+ textAt(6,30,cut(data.target,19),CYAN);
+ bool siteOK=isfinite(SITE_LAT_DEG)&&isfinite(SITE_LON_DEG)&&fabs(SITE_LAT_DEG)<=90&&fabs(SITE_LON_DEG)<=180;
+ time_t now=time(nullptr);
+ if(!siteOK){
+  textAt(6,65,"Standort fehlt",YELLOW);
+  textAt(6,85,"SITE_LAT_DEG /",WHITE);
+  textAt(6,99,"SITE_LON_DEG",WHITE);
+  textAt(6,125,"in Sketch setzen.",GRAY);
+  footer();return;
+ }
+ if(!data.hasRaDec||now<1700000000){
+  textAt(6,65,!data.hasRaDec?"RA/Dec fehlen":"Zeit nicht synchron",YELLOW);
+  textAt(6,88,"Kein erfundener",GRAY);
+  textAt(6,102,"Hoehenverlauf.",GRAY);
+  footer();return;
+ }
+ double currentAlt=altitudeAt(now,data.raHours,data.decDeg);
+ textAt(6,45,"Aktuell: "+String(currentAlt,1)+" Grad",GREEN);
+ const int x0=18,x1=130,y0=76,y1=184;
+ gfx->drawLine(x0,y0,x0,y1,GRAY);gfx->drawLine(x0,y1,x1,y1,GRAY);
+ for(int a=0;a<=90;a+=30){
+  int y=y1-(a*(y1-y0))/90;
+  gfx->drawFastHLine(x0,y,x1-x0,0x18E3);
+  textAt(0,y-4,String(a),GRAY);
+ }
+ // Center on current time: -4 to +4 hours; each point ~4.3 min.
+ time_t start=now-4*3600;
+ int oldX=-1,oldY=-1,transitX=-1;
+ double previousHA=0;
+ for(int px=x0;px<=x1;px++){
+  time_t t=start+(time_t)((px-x0)*8.0*3600.0/(x1-x0));
+  double alt=altitudeAt(t,data.raHours,data.decDeg);
+  int yy=y1-constrain((int)round(alt),0,90)*(y1-y0)/90;
+  if(oldX>=0)gfx->drawLine(oldX,oldY,px,yy,CYAN);
+  double ha=hourAngleDeg(t,data.raHours);
+  if(oldX>=0&&previousHA<0&&ha>=0)transitX=px;
+  previousHA=ha;oldX=px;oldY=yy;
+ }
+ if(transitX>=0){
+  for(int y=y0;y<=y1;y+=5)gfx->drawLine(transitX,y,transitX,y+2,YELLOW);
+  textAt(constrain(transitX-9,x0,W-18),67,"MER",YELLOW);
+ }
+ int currX=(x0+x1)/2;
+ int currY=y1-constrain((int)round(currentAlt),0,90)*(y1-y0)/90;
+ gfx->fillCircle(currX,currY,3,GREEN);
+ gfx->drawFastVLine(currX,y0,y1-y0,GREEN);
+ textAt(7,193,"-4h",GRAY);textAt(60,193,"JETZT",GREEN);textAt(108,193,"+4h",GRAY);
+ textAt(5,205,"MER=Transit,kein Flip",YELLOW);
+ footer("WEITER","MENU");
+}
+void drawAbout(){
+ header("INFO");
+ textAt(6,36,"N.I.N.A. POCKET",CYAN);
+ textAt(6,52,"Companion v0.1",WHITE);
+ textAt(6,75,"READ-ONLY",GREEN);
+ textAt(6,99,"WiFi:",GRAY);
+ textAt(6,112,WiFi.status()==WL_CONNECTED?WiFi.localIP().toString():"offline");
+ textAt(6,137,autoHost()?"N.I.N.A. PC (auto):":"N.I.N.A. PC:",GRAY);
+ if(scanning)textAt(6,150,"Suche... "+String(scanPercent())+"%",YELLOW);
+ else textAt(6,150,ninaHost.length()?ninaHost:"nicht gefunden",ninaHost.length()?WHITE:RED);
+ textAt(6,171,"Port: "+String(NINA_PORT));
+ textAt(6,192,DEMO_MODE?"DEMO":"LIVE",DEMO_MODE?YELLOW:GREEN);
+ footer();
+}
+void render(){
+ switch(page){
+ case HOME:drawHome();break;case SYSTEM:drawSystem();break;case SESSION:drawSession();break;
+ case CAMERA:drawCamera();break;case GUIDING:drawGuiding();break;case FILTER:drawFilter();break;
+ case OBJECT:drawObject();break;case ALTITUDE:drawAltitude();break;case ABOUT:drawAbout();break;
+ default:break;
+ }
+ if(canvas)tft.drawRGBBitmap(0,0,canvas->getBuffer(),W,H);
+ dirty=false;lastDraw=millis();
+}
+void processButton(uint8_t pin,bool &previous,uint32_t &changed,bool nextButton){
+ bool pressed=(digitalRead(pin)==LOW);
+ if(pressed!=previous && millis()-changed>40){
+  changed=millis();previous=pressed;
+  if(pressed){
+   if(page==HOME){
+    if(nextButton)navCursor=(navCursor+1)%8;
+    else page=(Page)(navCursor+1);
+   }else{
+    if(nextButton)page=(Page)((page==ABOUT)?SYSTEM:((int)page+1));
+    else page=HOME;
+   }
+   dirty=true;
+  }
+ }
+}
+void setup(){
+ Serial.begin(115200);
+ pinMode(TFT_BL,OUTPUT);digitalWrite(TFT_BL,HIGH);
+ pinMode(BTN_NEXT,INPUT_PULLUP);
+ pinMode(BTN_PAGE,INPUT); // GPIO35 has no internal pull-up
+ SPI.begin(TFT_SCLK,-1,TFT_MOSI,TFT_CS);
+ tft.init(135,240);tft.setRotation(0);tft.invertDisplay(true);
+ // Allocate before WiFi starts, while the heap is still unfragmented.
+ canvas=new GFXcanvas16(W,H);
+ if(!canvas->getBuffer()){delete canvas;canvas=nullptr;}
+ tft.fillScreen(BG);textAt(6,30,"N.I.N.A. POCKET",CYAN,1);
+ textAt(6,55,"Start...",GRAY);
+ if(!DEMO_MODE){
+  WiFi.mode(WIFI_STA);WiFi.begin(WIFI_SSID,WIFI_PASS);
+  configTime(0,0,"pool.ntp.org","time.google.com"); // UTC internally
+  textAt(6,75,"WLAN verbinden...",GRAY);
+  // Wait up to 10 s so the first poll doesn't immediately report "WLAN offline".
+  uint32_t t0=millis();
+  while(WiFi.status()!=WL_CONNECTED&&millis()-t0<10000)delay(100);
+  if(autoHost()){
+   // Try the address found last time first; scan only if it no longer answers.
+   prefs.begin("nina",false);
+   String saved=prefs.getString("host","");
+   if(saved.length()&&WiFi.status()==WL_CONNECTED){
+    textAt(6,95,"Pruefe "+saved,GRAY);
+    if(isNina(saved))ninaHost=saved;
+   }
+   if(!ninaHost.length()&&WiFi.status()==WL_CONNECTED)startScan();
+  }
+ }
+ if(canvas)gfx=canvas;
+ pollNina();render();lastPoll=millis();
+}
+void loop(){
+ static bool wasNext=false,wasPage=false;
+ static uint32_t changedNext=0,changedPage=0;
+ processButton(BTN_NEXT,wasNext,changedNext,true);
+ processButton(BTN_PAGE,wasPage,changedPage,false);
+ if(!DEMO_MODE&&WiFi.status()!=WL_CONNECTED&&millis()-lastWiFiTry>15000){
+  lastWiFiTry=millis();WiFi.reconnect();
+ }
+ // Poll right away when WiFi (re)connects instead of waiting for the next interval.
+ static bool wifiWas=WiFi.status()==WL_CONNECTED;
+ bool wifiNow=WiFi.status()==WL_CONNECTED;
+ bool wifiUp=wifiNow&&!wifiWas;wifiWas=wifiNow;
+ if(scanning&&wifiNow)scanStep();
+ if(pollNow||wifiUp||millis()-lastPoll>=POLL_MS){pollNow=false;lastPoll=millis();pollNina();}
+ if(dirty||(page==ALTITUDE&&millis()-lastDraw>30000))render();
+ delay(15);
+}
