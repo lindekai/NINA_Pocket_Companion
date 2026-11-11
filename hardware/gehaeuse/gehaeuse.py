@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Parametric 3D-printable case for the N.I.N.A. Pocket Companion:
-LilyGO T-Display (ESP32) stacked on a LiPo of the same footprint.
+LilyGO T-Display (ESP32) stacked on a 1100 mAh LiPo (47 x 29 x 8 mm).
 
 Two parts:
   gehaeuse_unterteil.stl  shell holding battery + board, USB-C opening
@@ -26,22 +26,22 @@ import numpy as np
 from manifold3d import CrossSection, JoinType, Manifold
 
 # ------------------------------ PARAMETERS ------------------------------
-# T-Display board (verify with calipers)
-PCB_L, PCB_W, PCB_T = 51.5, 25.0, 1.6
-BACK_H = 3.5        # tallest part on the back side (ESP32 module, JST plug)
-FRONT_H = 3.0       # display glass surface above the PCB top
+# T-Display board: measured 52 x 26 x 6 mm overall (6 = BACK_H + PCB_T + FRONT_H)
+PCB_L, PCB_W, PCB_T = 52.0, 26.0, 1.6
+BACK_H = 2.6        # tallest part on the back side (ESP32 module, JST plug) - assumed
+FRONT_H = 1.8       # display glass surface above the PCB top - assumed
 # Display window (visible area ~14.2 x 25.2 mm), centre measured from the PCB end without USB
 WIN_W, WIN_L, WIN_CX = 15.0, 26.0, 21.0
 WIN_CHAMFER = 1.0
 # Buttons GPIO0 / GPIO35, measured from the USB edge and from each long edge
 BTN_FROM_USB, BTN_FROM_SIDE = 4.5, 4.0
-BTN_H = 1.8         # top of the push button above the PCB top
+BTN_H = 1.5         # top of the push button above the PCB top
 # USB-C opening in the end wall
 USB_W, USB_H, USB_DZ = 10.0, 5.0, 0.0   # USB_DZ: offset of the centre from the PCB mid-plane
-# Battery (same footprint as the board, thicker)
-BAT_L, BAT_W, BAT_T = 50.0, 25.0, 10.0
-GAP = 0.4           # air between battery and the parts on the board's back
-CABLE_BAY = 2.5     # room at the far end for the battery cable to fold up
+# Battery 1100 mAh LiPo (measured); wider than the board, shorter than it
+BAT_L, BAT_W, BAT_T = 47.0, 29.0, 8.0
+GAP = 1.0           # foam pad between battery and the parts on the board's back
+CABLE_BAY = 0.0     # extra length for the battery cable (battery is shorter than the board)
 # Case
 CLR = 0.3           # clearance board <-> wall
 WALL, FLOOR, LID_T = 1.6, 1.2, 1.4
@@ -76,15 +76,16 @@ def cyl_z(x, y, z0, z1, r):
 
 
 # ---- derived geometry ----
-IN_L = CABLE_BAY + PCB_L + 2 * CLR
-IN_W = PCB_W + 2 * CLR
+IN_L = CABLE_BAY + max(PCB_L, BAT_L) + 2 * CLR
+IN_W = max(PCB_W, BAT_W) + 2 * CLR
 OUT_L, OUT_W = IN_L + 2 * WALL, IN_W + 2 * WALL
 Z_PCB_BOT = FLOOR + BAT_T + GAP + BACK_H
 Z_PCB_TOP = Z_PCB_BOT + PCB_T
 Z_RIM = Z_PCB_TOP + FRONT_H + 0.1          # lid sits on the rim just above the glass
-PCB_X0 = WALL + CABLE_BAY + CLR            # PCB end without USB
-PCB_Y0 = WALL + CLR
-SNAP_Z = Z_RIM - 1.6
+PCB_X0 = WALL + IN_L - CLR - PCB_L         # PCB end without USB (board sits against the USB wall)
+PCB_Y0 = WALL + (IN_W - PCB_W) / 2         # board centred across the (wider) cavity
+PRESS = 1.0                                # how far the lid rim overlaps the PCB edge
+SNAP_Z = Z_PCB_TOP - 0.3
 SNAP_LEN = 24.0
 BTN_X = PCB_X0 + PCB_L - BTN_FROM_USB
 BTN_YS = (PCB_Y0 + BTN_FROM_SIDE, PCB_Y0 + PCB_W - BTN_FROM_SIDE)
@@ -114,17 +115,25 @@ def lid():
     # skirt that slides into the shell and presses the PCB edges down
     sk_x0, sk_y0 = WALL + FIT, WALL + FIT
     sk_x1, sk_y1 = WALL + IN_L - FIT, WALL + IN_W - FIT
+    px0, py0, px1, py1 = PCB_X0, PCB_Y0, PCB_X0 + PCB_L, PCB_Y0 + PCB_W
     skirt_bot = Z_PCB_TOP + 0.05
+    inner = (max(px0 + PRESS, sk_x0 + SKIRT_T), max(py0 + PRESS, sk_y0 + SKIRT_T),
+             min(px1 - PRESS, sk_x1 - SKIRT_T), min(py1 - PRESS, sk_y1 - SKIRT_T))
     skirt = rounded(sk_x0, sk_y0, sk_x1, sk_y1, 0.5, skirt_bot, z0)
-    skirt -= rounded(sk_x0 + SKIRT_T, sk_y0 + SKIRT_T, sk_x1 - SKIRT_T, sk_y1 - SKIRT_T, 0.3,
-                     skirt_bot - 1, z0 + 1)
-    # end stop at the far end keeps the board against the USB wall
-    stop = box(sk_x0, sk_y0, Z_PCB_BOT + 0.2, PCB_X0 - 0.05, sk_y1, z0)
+    skirt -= rounded(*inner, 0.3, skirt_bot - 1, z0 + 1)
+    # guides beside the board where the cavity is wider/longer than the PCB
+    guide_bot = Z_PCB_BOT + 0.3
+    for g in (box(sk_x0, sk_y0, guide_bot, sk_x1, py0 - CLR, z0),
+              box(sk_x0, py1 + CLR, guide_bot, sk_x1, sk_y1, z0),
+              box(sk_x0, sk_y0, guide_bot, px0 - CLR, sk_y1, z0)):
+        bb = g.bounding_box()
+        if min(bb[3] - bb[0], bb[4] - bb[1]) >= 0.8:
+            skirt += g
     # snap bumps
     xm = OUT_L / 2
     bumps = cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y0 + 0.15, SNAP_Z, 0.45) + \
         cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y1 - 0.15, SNAP_Z, 0.45)
-    part = plate + skirt + stop + bumps
+    part = plate + skirt + bumps
     # display window with chamfer on the top face
     wx0 = PCB_X0 + WIN_CX - WIN_L / 2
     wy0 = PCB_Y0 + PCB_W / 2 - WIN_W / 2
@@ -143,7 +152,9 @@ def lid():
         u = box(tx0, ty0 - slot, z0 - 1, tx1 + slot, ty1 + slot, z0 + LID_T + 1)
         u -= box(tx0 - 1, ty0, z0 - 2, tx1, ty1, z0 + LID_T + 2)
         part -= u
-        part += cyl_z(BTN_X, by, Z_PCB_TOP + BTN_H + 0.2, z0 + 0.01, 1.2)
+        nub_bot = Z_PCB_TOP + BTN_H + 0.2
+        if nub_bot < z0:
+            part += cyl_z(BTN_X, by, nub_bot, z0 + 0.01, 1.2)
         # small dimple on top so the buttons can be found by touch
         part -= Manifold.sphere(1.6, SEG).translate((BTN_X, by, z0 + LID_T + 1.2))
     return part

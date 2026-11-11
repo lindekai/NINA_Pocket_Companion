@@ -1,11 +1,11 @@
 # 🧱 Gehäuse zum 3D-Drucken
 
-Zweiteiliges Gehäuse für das LilyGO T-Display mit einem LiPo-Akku gleicher Grundfläche (z. B. 1100 mAh, ca. 50 × 25 × 10 mm) darunter.
+Zweiteiliges Gehäuse für das LilyGO T-Display (52 × 26 × 6 mm) mit einem 1100-mAh-LiPo-Akku (47 × 29 × 8 mm) darunter.
 
 | Datei | Teil | Maße (L × B × H) |
 |---|---|---|
-| [`gehaeuse_unterteil.stl`](gehaeuse_unterteil.stl) | Unterteil für Akku und Platine, Öffnung für USB-C | 57,8 × 28,8 × 19,8 mm |
-| [`gehaeuse_deckel.stl`](gehaeuse_deckel.stl) | Schnappdeckel mit Displayfenster und zwei federnden Tasten | 57,8 × 28,8 × 5,9 mm |
+| [`gehaeuse_unterteil.stl`](gehaeuse_unterteil.stl) | Unterteil für Akku und Platine, Öffnung für USB-C | 55,8 × 32,8 × 16,3 mm |
+| [`gehaeuse_deckel.stl`](gehaeuse_deckel.stl) | Schnappdeckel mit Displayfenster und zwei federnden Tasten | 55,8 × 32,8 × 4,6 mm |
 
 ## Aufbau
 
@@ -14,29 +14,28 @@ Zweiteiliges Gehäuse für das LilyGO T-Display mit einem LiPo-Akku gleicher Gru
    │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Display ▓▓▓▓▓▓▓▓▓▓▓▓▓▓       ▲ ▲              │
    │ ═══════════════════ T-Display ═══════════════════════         │ ← USB-C
    │      ░░ ESP32-Modul / Akkustecker (Rückseite) ░░              │
-   │ ┌──────────────────── LiPo-Akku ────────────────────┐         │
-   └─┴───────────────────────────────────────────────────┴─────────┘
-     ↑ Kabelfach
+   │      ▒ Schaumstoff-Pad ▒                                      │
+   │  Freiraum  ┌─────────────────────── LiPo-Akku ─────────────────┤
+   └────────────┴───────────────────────────────────────────────────┘
 ```
 
-- Der **Deckel** drückt die Platine am Rand nach unten. Ein Anschlag am hinteren Ende hält sie an der USB-Seite.
+- Der Akku ist breiter als die Platine. Das Unterteil richtet sich nach dem Akku; **Führungsleisten am Deckel** halten die Platine seitlich mittig (±0,3 mm Spiel) und drücken sie am Rand nach unten.
 - Die **Tasten** sind federnde Zungen im Deckel mit einem Stößel auf der Unterseite. Kleine Mulden auf der Oberseite machen sie ertastbar.
 - Der Deckel **rastet** über zwei Nasen in eine Nut an den Längsseiten ein.
-- Das **Kabelfach** am hinteren Ende nimmt das Akkukabel auf, das zum Stecker auf der Rückseite der Platine hochgeführt wird.
+- Der Akku ist 5 mm kürzer als die Platine. Dieser **Freiraum** nimmt das Akkukabel auf, das zum Stecker auf der Rückseite der Platine hochgeführt wird.
+- Ein 1 mm dickes **Schaumstoff-Pad** zwischen Akku und Platinenrückseite federt den Stapel ab und schützt den Akku.
 
-## ⚠️ Vor dem Drucken nachmessen
+## Maße
 
-Ich habe typische Maße angenommen. Bitte mit dem Messschieber prüfen und oben in [`gehaeuse.py`](gehaeuse.py) anpassen:
+Gemessen sind Platine (52 × 26 × 6 mm) und Akku (47 × 29 × 8 mm). Diese Werte sind noch **angenommen** und sollten vor dem Druck geprüft werden; sie stehen oben in [`gehaeuse.py`](gehaeuse.py):
 
 | Parameter | Annahme | Was messen |
 |---|---|---|
-| `PCB_L`, `PCB_W` | 51,5 × 25,0 mm | Platine außen |
-| `BACK_H` | 3,5 mm | höchstes Bauteil auf der Rückseite (ESP32-Modul, Akkustecker) |
-| `FRONT_H` | 3,0 mm | Displayoberfläche über der Platinenoberseite |
+| `FRONT_H` | 1,8 mm | Displayoberfläche über der Platinenoberseite |
+| `BACK_H` | 2,6 mm | höchstes Bauteil auf der Rückseite (ergibt mit 1,6 mm Platine und `FRONT_H` die 6 mm) |
 | `WIN_CX` | 21,0 mm | Mitte des sichtbaren Displays, gemessen vom Platinenende **ohne** USB |
 | `BTN_FROM_USB`, `BTN_FROM_SIDE` | 4,5 / 4,0 mm | Mitte der Taster, gemessen von USB-Kante bzw. Längskante |
-| `BTN_H` | 1,8 mm | Oberkante der Taster über der Platine |
-| `BAT_L`, `BAT_W`, `BAT_T` | 50 × 25 × 10 mm | Akku inkl. Schutzschaltung |
+| `BTN_H` | 1,5 mm | Oberkante der Taster über der Platine |
 
 Danach neu erzeugen:
 
@@ -46,7 +45,7 @@ python3 hardware/gehaeuse/gehaeuse.py
 ```
 
 > [!TIP]
-> Erst nur den Deckel drucken (ca. 20 min) und auf die Platine legen: Sitzen Fenster und Tasten richtig, passt der Rest auch.
+> Erst nur den Deckel drucken (ca. 15 min) und auf die Platine legen: Sitzen Fenster und Tasten richtig, passt der Rest auch.
 
 ## Druckeinstellungen
 
@@ -61,8 +60,8 @@ python3 hardware/gehaeuse/gehaeuse.py
 
 ## Montage
 
-1. Akku mit doppelseitigem Schaumklebeband auf den Boden kleben. Das Kabel zeigt zum Ende **ohne** USB-Öffnung.
-2. Kabel im Kabelfach nach oben führen und an der Platinenrückseite einstecken.
+1. Akku mit doppelseitigem Klebeband auf den Boden kleben, an die Wand mit der USB-Öffnung geschoben. Das Kabel zeigt zum anderen Ende, wo 5 mm frei bleiben.
+2. Ein ca. 1 mm dickes Schaumstoff-Pad auf den Akku legen, das Kabel im Freiraum nach oben führen und an der Platinenrückseite einstecken.
 3. Platine mit dem Display nach oben einlegen, USB-C in die Öffnung.
 4. Deckel aufdrücken, bis er einrastet.
 

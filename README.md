@@ -88,7 +88,7 @@ flowchart LR
 | Board | Klassisches **LilyGO/TTGO T-Display**, ESP32, 1,14″ ST7789V, 135 × 240 px |
 | Display | MOSI GPIO19 · CLK GPIO18 · CS GPIO5 · DC GPIO16 · RST GPIO23 · BL GPIO4 |
 | Tasten | GPIO0 (**WEITER**) · GPIO35 (**ÖFFNEN / ZURÜCK**) |
-| Akku (optional) | LiPo mit gleicher Grundfläche, z. B. 1100 mAh, ca. 50 × 25 × 10 mm |
+| Akku (optional) | LiPo 1100 mAh, 47 × 29 × 8 mm |
 | Gehäuse | 3D-druckbar, siehe [`hardware/gehaeuse`](hardware/gehaeuse) |
 
 Dokumentation: [LilyGO T-Display Wiki](https://wiki.lilygo.cc/products/t-display-series/t-display/)
