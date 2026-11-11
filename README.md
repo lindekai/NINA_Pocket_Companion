@@ -28,7 +28,7 @@
 | 📈 **Höhenverlauf** | ±4 Stunden um jetzt, berechnet aus RA/Dec der Montierung und deinem Standort – inkl. Meridiandurchgang. |
 | 🧊 **Ehrliche Anzeige** | Fehlende Werte erscheinen als `--`. Ist N.I.N.A. kurz weg, bleiben die letzten Werte sichtbar und sind mit `ALT` markiert. |
 | ⚡ **Ruhiges Bild** | Seiten werden im Hintergrund aufgebaut und flackerfrei übertragen. Die Tasten bleiben auch bei Netzproblemen bedienbar. |
-| 🧰 **Minimal-Hardware** | Ein LilyGO T-Display – sonst nichts. Installation komplett über die Arduino IDE. |
+| 🧰 **Minimal-Hardware** | Ein LilyGO T-Display, optional ein Akku – Installation komplett über die Arduino IDE, [Gehäuse zum Drucken](hardware/gehaeuse) inklusive. |
 
 ## 📱 Ansichten
 
@@ -88,7 +88,8 @@ flowchart LR
 | Board | Klassisches **LilyGO/TTGO T-Display**, ESP32, 1,14″ ST7789V, 135 × 240 px |
 | Display | MOSI GPIO19 · CLK GPIO18 · CS GPIO5 · DC GPIO16 · RST GPIO23 · BL GPIO4 |
 | Tasten | GPIO0 (**WEITER**) · GPIO35 (**ÖFFNEN / ZURÜCK**) |
-| Sonstiges | Keine weitere Hardware nötig |
+| Akku (optional) | LiPo mit gleicher Grundfläche, z. B. 1100 mAh, ca. 50 × 25 × 10 mm |
+| Gehäuse | 3D-druckbar, siehe [`hardware/gehaeuse`](hardware/gehaeuse) |
 
 Dokumentation: [LilyGO T-Display Wiki](https://wiki.lilygo.cc/products/t-display-series/t-display/)
 
@@ -194,7 +195,8 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 - [ ] Echte Flip-Markierung aus den N.I.N.A.-Einstellungen
 - [ ] Asynchroner API-Client
 - [ ] Fotos vom Gerät im Einsatz
-- [ ] Gehäuse zum 3D-Drucken
+- [x] Gehäuse zum 3D-Drucken ([`hardware/gehaeuse`](hardware/gehaeuse))
+- [ ] Gehäuse an echter Hardware nachmessen und Probe drucken
 
 ## 🖼️ Mockups neu erzeugen
 
