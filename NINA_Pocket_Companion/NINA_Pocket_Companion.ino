@@ -19,14 +19,27 @@
 #include <math.h>
 
 // ------------------ CONFIGURE HERE ------------------
-const char *WIFI_SSID = "YOUR_WIFI_SSID";
-const char *WIFI_PASS = "YOUR_WIFI_PASSWORD";
+// WiFi credentials and observatory location live in secrets.h (not in git),
+// see secrets_example.h.
+#if __has_include("secrets.h")
+#include "secrets.h"
+#endif
+#ifndef SECRET_WIFI_SSID
+#define SECRET_WIFI_SSID "YOUR_WIFI_SSID"
+#define SECRET_WIFI_PASS "YOUR_WIFI_PASSWORD"
+#endif
+#ifndef SECRET_SITE_LAT
+#define SECRET_SITE_LAT NAN
+#define SECRET_SITE_LON NAN
+#endif
+const char *WIFI_SSID = SECRET_WIFI_SSID;
+const char *WIFI_PASS = SECRET_WIFI_PASS;
 // N.I.N.A. PC LAN IP, not localhost. Empty = auto-discover on the local /24 network.
 const char *NINA_HOST = "";
 const uint16_t NINA_PORT = 1888;
-// Observatory coordinates (example placeholder; MUST replace for altitude plot):
-const double SITE_LAT_DEG = NAN;
-const double SITE_LON_DEG = NAN; // East positive, e.g. Berlin +13.4
+// Observatory coordinates for the altitude plot (east longitude positive), from secrets.h.
+const double SITE_LAT_DEG = SECRET_SITE_LAT;
+const double SITE_LON_DEG = SECRET_SITE_LON;
 const bool DEMO_MODE = false;   // Set true to test screens without N.I.N.A.
 const uint32_t POLL_MS = 8000;
 // ----------------------------------------------------
@@ -296,89 +309,96 @@ void textAt(int x,int y,String s,uint16_t color=WHITE,uint8_t size=1,uint16_t bg
 void line(int y){gfx->drawFastHLine(5,y,125,0x19CA);}
 String cut(String s,int maxLen){if((int)s.length()>maxLen)return s.substring(0,maxLen-2)+"..";return s;}
 String yesNo(bool value){return value?"OK":"AUS";}
+// Layout uses the built-in 6x8 font: size 1 for labels/hints, size 2 (12x16) for values.
+// A size-2 line holds 10 characters inside the 6 px margins.
+const char DEG=(char)247; // degree sign in the classic GFX font
 void header(String title) {
  gfx->fillScreen(BG);
  gfx->fillRect(0,0,W,23,PANEL);
- textAt(5,7,cut(title,18),CYAN,1,PANEL);
+ textAt(5,4,cut(title,9),CYAN,2,PANEL);
  gfx->fillCircle(126,11,3,WiFi.status()==WL_CONNECTED?GREEN:RED);
  line(24);
 }
-void footer(const String &left="NEXT",const String &right="DETAIL") {
+void footer(const String &left="WEITER",const String &right="MENU") {
  line(216);textAt(6,224,left,GRAY);textAt(77,224,right,GRAY);
  if(data.stale)textAt(51,224,"ALT",YELLOW);
 }
+// Label (small) above a large value.
 void kv(int y,const String &label,const String &value,uint16_t c=WHITE){
- textAt(6,y,cut(label,20),GRAY);textAt(6,y+13,cut(value,21),c);line(y+27);
+ textAt(6,y,cut(label,20),GRAY);textAt(6,y+11,cut(value,10),c,2);line(y+30);
 }
+// Label (small) on the left, large value right-aligned.
 void row(int y,String label,String val,uint16_t c=WHITE){
- textAt(6,y,cut(label,12),GRAY);textAt(77,y,cut(val,9),c);line(y+13);
+ val=cut(val,6);
+ textAt(6,y+5,cut(label,12),GRAY);textAt(129-12*val.length(),y+1,val,c,2);line(y+19);
 }
 void drawHome(){
- header("N.I.N.A. POCKET");
- textAt(6,37,"Companion",CYAN,2);
- if(scanning&&!data.api)textAt(6,63,"SUCHE N.I.N.A. "+String(scanPercent())+"%",YELLOW);
- else textAt(6,63,data.api?"N.I.N.A. ONLINE":"N.I.N.A. OFFLINE",data.api?GREEN:RED);
- textAt(6,78,DEMO_MODE?"DEMO MODUS":"NUR STATUS/READ-ONLY",YELLOW);
- const char* names[]={"System","Session","Kamera","Guiding","Filter","Objekt","Hoehenverlauf","Info"};
+ header("N.I.N.A.");
+ const char* names[]={"System","Session","Kamera","Guiding","Filter","Objekt","Hoehe","Info"};
  for(int i=0;i<8;i++){
-  int y=99+i*14;
-  if(i==navCursor)gfx->fillRoundRect(3,y-2,129,13,3,PANEL);
-  textAt(8,y,String(i==navCursor?"> ":"  ")+names[i],i==navCursor?YELLOW:WHITE,1,i==navCursor?PANEL:BG);
+  int y=29+i*20;
+  bool sel=i==navCursor;
+  if(sel)gfx->fillRoundRect(3,y-2,129,19,4,PANEL);
+  textAt(10,y,names[i],sel?YELLOW:WHITE,2,sel?PANEL:BG);
  }
+ if(DEMO_MODE)textAt(6,195,"DEMO MODUS",YELLOW);
+ else if(scanning&&!data.api)textAt(6,195,"SUCHE N.I.N.A. "+String(scanPercent())+"%",YELLOW);
+ else textAt(6,195,data.api?"N.I.N.A. ONLINE":"N.I.N.A. OFFLINE",data.api?GREEN:RED);
  footer("WEITER","OEFFNEN");
 }
 void drawSystem(){
- header("SYSTEMSTATUS");
- textAt(6,34,data.api?"N.I.N.A. verbunden":"Keine Verbindung",data.api?GREEN:RED);
- textAt(6,48,!data.hasRunning?"Session: unbekannt":(data.running?"Session: AKTIV":"Keine aktive Session"),YELLOW);
- line(65);
- row(72,"Kamera",yesNo(data.camera),data.camera?GREEN:GRAY);
- row(91,"Montierung",!data.mount?"AUS":(data.hasParked&&data.parked?"PARK":"OK"));
- row(110,"Guiding",yesNo(data.guider),data.guider?GREEN:GRAY);
+ header("SYSTEM");
+ textAt(6,30,data.api?"ONLINE":"OFFLINE",data.api?GREEN:RED,2);
+ textAt(6,50,!data.hasRunning?"Session: unbekannt":(data.running?"Session: AKTIV":"Keine aktive Session"),YELLOW);
+ line(63);
+ row(66,"Kamera",yesNo(data.camera),data.camera?GREEN:GRAY);
+ row(87,"Montierung",!data.mount?"AUS":(data.hasParked&&data.parked?"PARK":"OK"));
+ row(108,"Guiding",yesNo(data.guider),data.guider?GREEN:GRAY);
  row(129,"Filterrad",yesNo(data.wheel),data.wheel?GREEN:GRAY);
- row(148,"Fokussierer",yesNo(data.focuser),data.focuser?GREEN:GRAY);
- row(167,"Filter",data.filter);
- row(186,"Temp",data.hasTemp?String(data.temp,1)+" C":"--");
+ row(150,"Fokussierer",yesNo(data.focuser),data.focuser?GREEN:GRAY);
+ row(171,"Filter",data.filter,CYAN);
+ row(192,"Temp",data.hasTemp?String(data.temp,1)+DEG:"--",CYAN);
  footer();
 }
 void drawSession(){
  header("SESSION");
- textAt(7,37,!data.hasRunning?"Status unbekannt":(data.running?"AUFNAHME AKTIV":"KEINE SESSION"),data.running?GREEN:YELLOW);
- kv(63,"Objekt",data.target);
- kv(97,"Sequenz",data.sequence);
- String frames=(data.completed>=0?String(data.completed):"--")+" / "+(data.total>=0?String(data.total):"--");
- kv(131,"Frames",frames);
- kv(165,"Belichtung",data.hasExposure?String(data.exposureSec,0)+" s":"--");
+ textAt(6,30,!data.hasRunning?"UNBEKANNT":(data.running?"AKTIV":"INAKTIV"),data.running?GREEN:YELLOW,2);
+ kv(52,"Objekt",data.target,CYAN);
+ kv(85,"Sequenz",data.sequence);
+ String frames=(data.completed>=0?String(data.completed):"--")+"/"+(data.total>=0?String(data.total):"--");
+ kv(118,"Frames",frames);
+ kv(151,"Belichtung",data.hasExposure?String(data.exposureSec,0)+" s":"--");
  footer();
 }
 void drawCamera(){
  header("KAMERA");
- textAt(6,36,cut(data.cameraName,18),CYAN);
- kv(60,"Verbindung",yesNo(data.camera),data.camera?GREEN:GRAY);
- kv(96,"Ist-Temperatur",data.hasTemp?String(data.temp,1)+" C":"--",CYAN);
- kv(132,"Soll-Temperatur",data.hasTargetTemp?String(data.targetTemp,1)+" C":"--");
+ textAt(6,30,cut(data.cameraName,21),CYAN);
+ kv(44,"Verbindung",yesNo(data.camera),data.camera?GREEN:GRAY);
+ kv(77,"Ist-Temperatur",data.hasTemp?String(data.temp,1)+DEG+"C":"--",CYAN);
+ kv(110,"Soll-Temperatur",data.hasTargetTemp?String(data.targetTemp,1)+DEG+"C":"--");
  footer();
 }
 void drawGuiding(){
  header("GUIDING");
- kv(42,"Guider",yesNo(data.guider),data.guider?GREEN:GRAY);
- kv(84,"Gesamt RMS",data.hasRms?String(data.rms,2)+" arcsec":"--",data.hasRms?GREEN:GRAY);
- textAt(6,164,"Nur N.I.N.A. Daten",GRAY);
+ kv(32,"Guider",yesNo(data.guider),data.guider?GREEN:GRAY);
+ kv(65,"RMS gesamt",data.hasRms?String(data.rms,2)+"\"":"--",data.hasRms?GREEN:GRAY);
+ textAt(6,110,"Nur N.I.N.A. Daten",GRAY);
  footer();
 }
 void drawFilter(){
- header("FILTERRAD");
- kv(43,"Verbindung",yesNo(data.wheel),data.wheel?GREEN:GRAY);
- kv(87,"Aktiver Filter",data.filter,CYAN);
- textAt(7,166,"Nur Anzeige",GRAY);
+ header("FILTER");
+ kv(32,"Verbindung",yesNo(data.wheel),data.wheel?GREEN:GRAY);
+ kv(65,"Aktiver Filter",data.filter,CYAN);
+ textAt(6,110,"Nur Anzeige",GRAY);
  footer();
 }
 void drawObject(){
  header("OBJEKT");
- kv(40,"Ziel",data.target,CYAN);
- kv(76,"Montierung Hoehe",data.hasAlt?String(data.alt,1)+" Grad":"--");
- kv(112,"Azimut",data.hasAz?String(data.az,1)+" Grad":"--");
- kv(148,"Koordinaten",data.hasRaDec?String(data.raHours,2)+" h / "+String(data.decDeg,1):"--");
+ kv(30,"Ziel",data.target,CYAN);
+ kv(63,"Hoehe (Montierung)",data.hasAlt?String(data.alt,1)+DEG:"--");
+ kv(96,"Azimut",data.hasAz?String(data.az,1)+DEG:"--");
+ kv(129,"RA",data.hasRaDec?String(data.raHours,2)+" h":"--");
+ kv(162,"Dec",data.hasRaDec?String(data.decDeg,1)+DEG:"--");
  footer();
 }
 // GMST and object altitude, using coordinates from current mount pointing.
@@ -398,25 +418,26 @@ double altitudeAt(time_t u,double raHours,double decDeg){
  return asin(constrain(v,-1.0,1.0))/rad;
 }
 void drawAltitude(){
- header("HOEHENVERLAUF");
- textAt(6,30,cut(data.target,19),CYAN);
+ header("HOEHE");
+ textAt(6,28,cut(data.target,10),CYAN,2);
  bool siteOK=isfinite(SITE_LAT_DEG)&&isfinite(SITE_LON_DEG)&&fabs(SITE_LAT_DEG)<=90&&fabs(SITE_LON_DEG)<=180;
  time_t now=time(nullptr);
  if(!siteOK){
-  textAt(6,65,"Standort fehlt",YELLOW);
-  textAt(6,85,"SITE_LAT_DEG /",WHITE);
-  textAt(6,99,"SITE_LON_DEG",WHITE);
-  textAt(6,125,"in Sketch setzen.",GRAY);
+  textAt(6,56,"Standort",YELLOW,2);textAt(6,74,"fehlt",YELLOW,2);
+  textAt(6,100,"SITE_LAT_DEG /",WHITE);
+  textAt(6,113,"SITE_LON_DEG",WHITE);
+  textAt(6,130,"in Sketch setzen.",GRAY);
   footer();return;
  }
  if(!data.hasRaDec||now<1700000000){
-  textAt(6,65,!data.hasRaDec?"RA/Dec fehlen":"Zeit nicht synchron",YELLOW);
-  textAt(6,88,"Kein erfundener",GRAY);
-  textAt(6,102,"Hoehenverlauf.",GRAY);
+  textAt(6,56,!data.hasRaDec?"RA/Dec":"Zeit nicht",YELLOW,2);
+  textAt(6,74,!data.hasRaDec?"fehlen":"synchron",YELLOW,2);
+  textAt(6,100,"Kein erfundener",GRAY);
+  textAt(6,113,"Hoehenverlauf.",GRAY);
   footer();return;
  }
  double currentAlt=altitudeAt(now,data.raHours,data.decDeg);
- textAt(6,45,"Aktuell: "+String(currentAlt,1)+" Grad",GREEN);
+ textAt(6,46,String(currentAlt,1)+DEG,GREEN,2);textAt(76,51,"aktuell",GRAY);
  const int x0=18,x1=130,y0=76,y1=184;
  gfx->drawLine(x0,y0,x0,y1,GRAY);gfx->drawLine(x0,y1,x1,y1,GRAY);
  for(int a=0;a<=90;a+=30){
@@ -451,16 +472,16 @@ void drawAltitude(){
 }
 void drawAbout(){
  header("INFO");
- textAt(6,36,"N.I.N.A. POCKET",CYAN);
- textAt(6,52,"Companion v0.1",WHITE);
- textAt(6,75,"READ-ONLY",GREEN);
+ textAt(6,30,"N.I.N.A. POCKET",CYAN);
+ textAt(6,43,"Companion v0.1",WHITE);
+ textAt(6,64,"READ-ONLY",GREEN,2);
  textAt(6,99,"WiFi:",GRAY);
  textAt(6,112,WiFi.status()==WL_CONNECTED?WiFi.localIP().toString():"offline");
  textAt(6,137,autoHost()?"N.I.N.A. PC (auto):":"N.I.N.A. PC:",GRAY);
  if(scanning)textAt(6,150,"Suche... "+String(scanPercent())+"%",YELLOW);
  else textAt(6,150,ninaHost.length()?ninaHost:"nicht gefunden",ninaHost.length()?WHITE:RED);
  textAt(6,171,"Port: "+String(NINA_PORT));
- textAt(6,192,DEMO_MODE?"DEMO":"LIVE",DEMO_MODE?YELLOW:GREEN);
+ textAt(6,190,DEMO_MODE?"DEMO":"LIVE",DEMO_MODE?YELLOW:GREEN,2);
  footer();
 }
 void render(){
@@ -495,7 +516,7 @@ void setup(){
  pinMode(BTN_NEXT,INPUT_PULLUP);
  pinMode(BTN_PAGE,INPUT); // GPIO35 has no internal pull-up
  SPI.begin(TFT_SCLK,-1,TFT_MOSI,TFT_CS);
- tft.init(135,240);tft.setRotation(0);tft.invertDisplay(true);
+ tft.init(135,240);tft.setRotation(2);tft.invertDisplay(true); // portrait, USB-C at the bottom
  // Allocate before WiFi starts, while the heap is still unfragmented.
  canvas=new GFXcanvas16(W,H);
  if(!canvas->getBuffer()){delete canvas;canvas=nullptr;}

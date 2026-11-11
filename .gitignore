@@ -1,2 +1,4 @@
 .DS_Store
 __pycache__/
+NINA_Pocket_Companion/secrets.h
+NINA_Pocket_Companion/build/

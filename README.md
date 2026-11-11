@@ -102,7 +102,7 @@ Dokumentation: [LilyGO T-Display Wiki](https://wiki.lilygo.cc/products/t-display
    - `ArduinoJson` (Version 7)
 
    Adafruit BusIO wird als Abhängigkeit mitinstalliert.
-3. [`NINA_Pocket_Companion/NINA_Pocket_Companion.ino`](NINA_Pocket_Companion/NINA_Pocket_Companion.ino) öffnen und konfigurieren (siehe unten).
+3. [`NINA_Pocket_Companion/NINA_Pocket_Companion.ino`](NINA_Pocket_Companion/NINA_Pocket_Companion.ino) öffnen, `secrets.h` anlegen und konfigurieren (siehe unten).
 4. Board **ESP32 Dev Module** und die richtige serielle Schnittstelle wählen, hochladen. Im Zweifel Flash 4 MB, PSRAM disabled.
 5. In N.I.N.A. das Plugin **Advanced API** aktivieren. Es muss vom T-Display im selben Netzwerk erreichbar sein (Standard-Port 1888, ggf. Windows-Firewall für lokalen Zugriff freigeben).
 
@@ -111,19 +111,24 @@ Dokumentation: [LilyGO T-Display Wiki](https://wiki.lilygo.cc/products/t-display
 
 ## ⚙️ Konfiguration
 
-Alle Einstellungen stehen oben im Sketch im Block `CONFIGURE HERE`:
+**Private Daten** – WLAN-Zugang und Standort – gehören in `NINA_Pocket_Companion/secrets.h`. Die Datei steht in der `.gitignore` und landet nie auf GitHub. Kopiere dazu [`secrets_example.h`](NINA_Pocket_Companion/secrets_example.h) nach `secrets.h` und trage deine Werte ein:
+
+| Eintrag in `secrets.h` | Bedeutung |
+|---|---|
+| `SECRET_WIFI_SSID`, `SECRET_WIFI_PASS` | Zugangsdaten deines WLANs |
+| `SECRET_SITE_LAT`, `SECRET_SITE_LON` | Standort deiner Sternwarte für die Höhenkurve in Dezimalgrad, Länge Ost positiv. Absichtlich `NAN` vorbelegt, damit keine falsche Kurve erscheint. |
+
+Alles Weitere steht oben im Sketch im Block `CONFIGURE HERE`:
 
 | Konstante | Bedeutung |
 |---|---|
-| `WIFI_SSID`, `WIFI_PASS` | Zugangsdaten deines WLANs |
 | `NINA_HOST` | IP des N.I.N.A.-PCs – **leer lassen für Auto-Discovery** |
 | `NINA_PORT` | Port der Advanced API (Standard `1888`) |
-| `SITE_LAT_DEG`, `SITE_LON_DEG` | Standort deiner Sternwarte für die Höhenkurve, Länge Ost positiv. Absichtlich `NAN` vorbelegt, damit keine falsche Kurve erscheint. |
 | `DEMO_MODE` | `true` zeigt Demodaten ohne Netzwerk |
 | `POLL_MS` | Abfrageintervall in Millisekunden (Standard 8000) |
 
-> [!WARNING]
-> Trage echte WLAN-Zugangsdaten nicht in einen öffentlichen Commit ein.
+> [!TIP]
+> Fehlt `secrets.h`, kompiliert der Sketch trotzdem – mit Platzhaltern, also ohne WLAN-Verbindung.
 
 ### 📡 Auto-Discovery
 

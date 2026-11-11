@@ -37,6 +37,7 @@ def rgb565(c):
 BG, PANEL, CYAN, GREEN = 0x0006, 0x084D, 0x07FF, 0x07E0
 YELLOW, WHITE, GRAY, RED = 0xFFE0, 0xFFFF, 0xA514, 0xF800
 LINE, GRID = 0x19CA, 0x18E3
+DEG = "\xf7"  # degree sign in the classic GFX font (char 247)
 
 
 def load_font(path):
@@ -128,7 +129,10 @@ class Screen:
         self._circle_helper(x + r, y + r, r, 2, h - 2 * r - 1, c)
 
     def draw_char(self, x, y, ch, fg, bg, s):
-        base = ord(ch) * 5
+        code = ord(ch)
+        if code >= 176:  # Adafruit GFX default (non-CP437) glyph offset
+            code += 1
+        base = code * 5
         for i in range(6):
             bits = self.font[base + i] if i < 5 else 0
             for j in range(8):
@@ -180,97 +184,98 @@ class Pages:
     def header(self, title):
         self.s.fill_screen(BG)
         self.s.fill_rect(0, 0, W, 23, PANEL)
-        self.text(5, 7, cut(title, 18), CYAN, 1, PANEL)
+        self.text(5, 4, cut(title, 9), CYAN, 2, PANEL)
         self.s.fill_circle(126, 11, 3, GREEN)
         self.sep(24)
 
-    def footer(self, left="NEXT", right="DETAIL"):
+    def footer(self, left="WEITER", right="MENU"):
         self.sep(216)
         self.text(6, 224, left, GRAY)
         self.text(77, 224, right, GRAY)
 
     def kv(self, y, label, value, c=WHITE):
         self.text(6, y, cut(label, 20), GRAY)
-        self.text(6, y + 13, cut(value, 21), c)
-        self.sep(y + 27)
+        self.text(6, y + 11, cut(value, 10), c, 2)
+        self.sep(y + 30)
 
     def row(self, y, label, val, c=WHITE):
-        self.text(6, y, cut(label, 12), GRAY)
-        self.text(77, y, cut(val, 9), c)
-        self.sep(y + 13)
+        val = cut(val, 6)
+        self.text(6, y + 5, cut(label, 12), GRAY)
+        self.text(129 - 12 * len(val), y + 1, val, c, 2)
+        self.sep(y + 19)
 
     def home(self, cursor=0):
-        self.header("N.I.N.A. POCKET")
-        self.text(6, 37, "Companion", CYAN, 2)
-        self.text(6, 63, "N.I.N.A. ONLINE", GREEN)
-        self.text(6, 78, "NUR STATUS/READ-ONLY", YELLOW)
-        names = ["System", "Session", "Kamera", "Guiding", "Filter", "Objekt", "Hoehenverlauf", "Info"]
+        self.header("N.I.N.A.")
+        names = ["System", "Session", "Kamera", "Guiding", "Filter", "Objekt", "Hoehe", "Info"]
         for i, n in enumerate(names):
-            y = 99 + i * 14
-            if i == cursor:
-                self.s.fill_round_rect(3, y - 2, 129, 13, 3, PANEL)
-            self.text(8, y, ("> " if i == cursor else "  ") + n, YELLOW if i == cursor else WHITE,
-                      1, PANEL if i == cursor else BG)
+            y = 29 + i * 20
+            sel = i == cursor
+            if sel:
+                self.s.fill_round_rect(3, y - 2, 129, 19, 4, PANEL)
+            self.text(10, y, n, YELLOW if sel else WHITE, 2, PANEL if sel else BG)
+        self.text(6, 195, "N.I.N.A. ONLINE", GREEN)
         self.footer("WEITER", "OEFFNEN")
 
     def system(self):
-        self.header("SYSTEMSTATUS")
-        self.text(6, 34, "N.I.N.A. verbunden", GREEN)
-        self.text(6, 48, "Session: AKTIV", YELLOW)
-        self.sep(65)
-        self.row(72, "Kamera", yes_no(D["camera"]), GREEN)
-        self.row(91, "Montierung", "OK")
-        self.row(110, "Guiding", yes_no(D["guider"]), GREEN)
-        self.row(129, "Filterrad", yes_no(D["wheel"]), GREEN)
-        self.row(148, "Fokussierer", yes_no(D["focuser"]), GREEN)
-        self.row(167, "Filter", D["filter"])
-        self.row(186, "Temp", f"{D['temp']:.1f} C")
+        self.header("SYSTEM")
+        self.text(6, 30, "ONLINE", GREEN, 2)
+        self.text(6, 50, "Session: AKTIV", YELLOW)
+        self.sep(63)
+        self.row(66, "Kamera", "OK", GREEN)
+        self.row(87, "Montierung", "OK")
+        self.row(108, "Guiding", "OK", GREEN)
+        self.row(129, "Filterrad", "OK", GREEN)
+        self.row(150, "Fokussierer", "OK", GREEN)
+        self.row(171, "Filter", D["filter"], CYAN)
+        self.row(192, "Temp", f"{D['temp']:.1f}{DEG}", CYAN)
         self.footer()
 
     def session(self):
         self.header("SESSION")
-        self.text(7, 37, "AUFNAHME AKTIV", GREEN)
-        self.kv(63, "Objekt", D["target"])
-        self.kv(97, "Sequenz", D["sequence"])
-        self.kv(131, "Frames", f"{D['completed']} / {D['total']}")
-        self.kv(165, "Belichtung", f"{D['exposure']} s")
+        self.text(6, 30, "AKTIV", GREEN, 2)
+        self.kv(52, "Objekt", D["target"], CYAN)
+        self.kv(85, "Sequenz", D["sequence"])
+        self.kv(118, "Frames", f"{D['completed']}/{D['total']}")
+        self.kv(151, "Belichtung", f"{D['exposure']} s")
         self.footer()
 
     def camera(self):
         self.header("KAMERA")
-        self.text(6, 36, cut(D["camera_name"], 18), CYAN)
-        self.kv(60, "Verbindung", "OK", GREEN)
-        self.kv(96, "Ist-Temperatur", f"{D['temp']:.1f} C", CYAN)
-        self.kv(132, "Soll-Temperatur", f"{D['target_temp']:.1f} C")
+        self.text(6, 30, cut(D["camera_name"], 21), CYAN)
+        self.kv(44, "Verbindung", "OK", GREEN)
+        self.kv(77, "Ist-Temperatur", f"{D['temp']:.1f}{DEG}C", CYAN)
+        self.kv(110, "Soll-Temperatur", f"{D['target_temp']:.1f}{DEG}C")
         self.footer()
 
     def guiding(self):
         self.header("GUIDING")
-        self.kv(42, "Guider", "OK", GREEN)
-        self.kv(84, "Gesamt RMS", f"{D['rms']:.2f} arcsec", GREEN)
-        self.text(6, 164, "Nur N.I.N.A. Daten", GRAY)
+        self.kv(32, "Guider", "OK", GREEN)
+        self.kv(65, "RMS gesamt", f"{D['rms']:.2f}\"", GREEN)
+        self.text(6, 110, "Nur N.I.N.A. Daten", GRAY)
         self.footer()
 
     def filter(self):
-        self.header("FILTERRAD")
-        self.kv(43, "Verbindung", "OK", GREEN)
-        self.kv(87, "Aktiver Filter", D["filter"], CYAN)
-        self.text(7, 166, "Nur Anzeige", GRAY)
+        self.header("FILTER")
+        self.kv(32, "Verbindung", "OK", GREEN)
+        self.kv(65, "Aktiver Filter", D["filter"], CYAN)
+        self.text(6, 110, "Nur Anzeige", GRAY)
         self.footer()
 
     def object(self):
         self.header("OBJEKT")
-        self.kv(40, "Ziel", D["target"], CYAN)
-        self.kv(76, "Montierung Hoehe", f"{D['alt']:.1f} Grad")
-        self.kv(112, "Azimut", f"{D['az']:.1f} Grad")
-        self.kv(148, "Koordinaten", f"{D['ra']:.2f} h / {D['dec']:.1f}")
+        self.kv(30, "Ziel", D["target"], CYAN)
+        self.kv(63, "Hoehe (Montierung)", f"{D['alt']:.1f}{DEG}")
+        self.kv(96, "Azimut", f"{D['az']:.1f}{DEG}")
+        self.kv(129, "RA", f"{D['ra']:.2f} h")
+        self.kv(162, "Dec", f"{D['dec']:.1f}{DEG}")
         self.footer()
 
     def altitude(self, now):
-        self.header("HOEHENVERLAUF")
-        self.text(6, 30, cut(D["target"], 19), CYAN)
+        self.header("HOEHE")
+        self.text(6, 28, cut(D["target"], 10), CYAN, 2)
         cur = altitude_at(now, D["ra"], D["dec"])
-        self.text(6, 45, f"Aktuell: {cur:.1f} Grad", GREEN)
+        self.text(6, 46, f"{cur:.1f}{DEG}", GREEN, 2)
+        self.text(76, 51, "aktuell", GRAY)
         x0, x1, y0, y1 = 18, 130, 76, 184
         s = self.s
         s.line(x0, y0, x0, y1, GRAY)
@@ -308,15 +313,15 @@ class Pages:
 
     def about(self):
         self.header("INFO")
-        self.text(6, 36, "N.I.N.A. POCKET", CYAN)
-        self.text(6, 52, "Companion v0.1", WHITE)
-        self.text(6, 75, "READ-ONLY", GREEN)
+        self.text(6, 30, "N.I.N.A. POCKET", CYAN)
+        self.text(6, 43, "Companion v0.1", WHITE)
+        self.text(6, 64, "READ-ONLY", GREEN, 2)
         self.text(6, 99, "WiFi:", GRAY)
         self.text(6, 112, WIFI_IP)
         self.text(6, 137, "N.I.N.A. PC (auto):", GRAY)
         self.text(6, 150, NINA_IP)
         self.text(6, 171, "Port: 1888")
-        self.text(6, 192, "LIVE", GREEN)
+        self.text(6, 190, "LIVE", GREEN, 2)
         self.footer()
 
 
