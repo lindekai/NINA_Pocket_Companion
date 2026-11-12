@@ -90,7 +90,7 @@ Bezeichnungen in `GRAY`, Werte in `WHITE`, passend zum bestehenden Stil. Beide Z
 
 ## Prüfung
 
-- `arduino-cli` ist auf dem Entwicklungsrechner nicht installiert. Kompiliert wird daher in der Arduino IDE durch den Nutzer, oder `arduino-cli` wird vorher eingerichtet.
+- Kompilieren und Flashen übernimmt der Nutzer später in der Arduino IDE. Während der Umsetzung wird nicht kompiliert. Deshalb sorgfältig auf Syntax und Typen achten, z. B. Prototypen für Funktionen mit Default-Argumenten.
 - Die Pixel-Umrechnung wird vorab in Python an den Projektfarben geprüft (BG → nahezu schwarz, WHITE → volles Rot, GRAY → mittleres Rot).
 - Am Gerät:
   1. Kurz links/rechts blättert wie bisher (beim Loslassen).
