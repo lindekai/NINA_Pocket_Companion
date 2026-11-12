@@ -17,6 +17,7 @@
 #include <lwip/sockets.h>
 #include <time.h>
 #include <math.h>
+#include "companion_logic.h"
 
 // ------------------ CONFIGURE HERE ------------------
 // WiFi credentials and observatory location live in secrets.h (not in git),
@@ -50,6 +51,11 @@ const uint8_t DISPLAY_TIMEOUT_MIN = 5;
 const uint32_t POLL_MS_DISPLAY_OFF = 30000; // slower polling while the display is off
 const bool WAKE_ON_EVENTS = true;           // wake on sequence end, connection loss, low battery
 const bool BATTERY_MONITOR = true;          // LiPo voltage via the board's divider on GPIO34
+// Backlight PWM values (0-255) for the 5 brightness levels; a long press on the
+// left key steps through the levels of the active mode. Both keys toggle night mode.
+const uint8_t BRIGHTNESS_DAY[5]   = {20, 50, 100, 170, 255};
+const uint8_t BRIGHTNESS_NIGHT[5] = {1, 3, 6, 12, 24};  // night mode: red on black
+const uint8_t DEFAULT_LEVEL_DAY = 5, DEFAULT_LEVEL_NIGHT = 2;
 // ----------------------------------------------------
 
 #define TFT_CS 5
@@ -84,6 +90,9 @@ uint8_t lostPolls=0;
 float batMv=-1;
 int batPct=-1;
 bool batUsb=false, batLowWarned=false;
+// Night mode and brightness levels (1-5), stored in Preferences.
+bool nightMode=false;
+uint8_t briDay=DEFAULT_LEVEL_DAY, briNight=DEFAULT_LEVEL_NIGHT;
 // Declared here: the Arduino IDE generates no prototypes for functions with default arguments.
 void wakeDisplay(int target=-1);
 
@@ -652,11 +661,21 @@ String batteryText(){
  return String(batMv/1000.0f,2)+"V "+String(batPct)+"%";
 }
 // ---------- Display power ----------
+uint8_t activeLevel(){return nightMode?briNight:briDay;}
+void applyBacklight(){
+ const uint8_t *table=nightMode?BRIGHTNESS_NIGHT:BRIGHTNESS_DAY;
+ analogWrite(TFT_BL,displayOn?table[activeLevel()-1]:0);
+}
+void loadSettings(){
+ nightMode=prefs.getBool("night",false);
+ briDay=validLevel(prefs.getUChar("briDay",DEFAULT_LEVEL_DAY),DEFAULT_LEVEL_DAY);
+ briNight=validLevel(prefs.getUChar("briNight",DEFAULT_LEVEL_NIGHT),DEFAULT_LEVEL_NIGHT);
+}
 void sleepDisplay(){
  if(!displayOn)return;
- digitalWrite(TFT_BL,LOW);
- tft.enableSleep(true);
  displayOn=false;
+ applyBacklight();
+ tft.enableSleep(true);
 }
 // Wakes the display. When it was off and an event caused the wake-up, jump to `target`.
 void wakeDisplay(int target){
@@ -667,7 +686,7 @@ void wakeDisplay(int target){
  delay(120); // ST7789 needs 120 ms after SLPOUT
  displayOn=true;
  render();
- digitalWrite(TFT_BL,HIGH);
+ applyBacklight();
 }
 void render(){
  switch(page){
@@ -699,7 +718,9 @@ void processButton(uint8_t pin,bool &previous,uint32_t &changed,bool nextButton)
 }
 void setup(){
  Serial.begin(115200);
- pinMode(TFT_BL,OUTPUT);digitalWrite(TFT_BL,HIGH);
+ prefs.begin("nina",false);
+ loadSettings();
+ pinMode(TFT_BL,OUTPUT);applyBacklight();
  pinMode(BTN_NEXT,INPUT_PULLUP);
  pinMode(BTN_PAGE,INPUT); // GPIO35 has no internal pull-up
  if(BATTERY_MONITOR){pinMode(ADC_EN,OUTPUT);digitalWrite(ADC_EN,HIGH);readBattery();}
@@ -719,7 +740,6 @@ void setup(){
   while(WiFi.status()!=WL_CONNECTED&&millis()-t0<10000)delay(100);
   if(autoHost()){
    // Try the address found last time first; scan only if it no longer answers.
-   prefs.begin("nina",false);
    String saved=prefs.getString("host","");
    if(saved.length()&&WiFi.status()==WL_CONNECTED){
     textAt(6,95,"Pruefe "+saved,GRAY);
