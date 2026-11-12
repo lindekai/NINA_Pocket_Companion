@@ -144,8 +144,9 @@ def lid():
     bumps = cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y0 + 0.15, SNAP_Z, 0.45) + \
         cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y1 - 0.15, SNAP_Z, 0.45)
     part = plate + skirt + bumps
-    # clearance above USB-C socket and buttons
-    part -= box(px1 - END_ZONE, sk_y0 - 1, skirt_bot - 1, OUT_L + 1, sk_y1 + 1, END_CLEAR)
+    # clearance above USB-C socket and buttons; reaches below the guides so no thin
+    # sliver of them is left hanging in the air
+    part -= box(px1 - END_ZONE, sk_y0 - 1, guide_bot - 1, OUT_L + 1, sk_y1 + 1, END_CLEAR)
     # display window with chamfer on the top face
     wx0 = PCB_X0 + WIN_CX - WIN_L / 2
     wy0 = PCB_Y0 + PCB_W / 2 - WIN_W / 2
