@@ -57,8 +57,8 @@ SKIRT_T = 1.2
 SWITCH = False
 SWITCH_W, SWITCH_H, SWITCH_X = 9.0, 4.0, 10.0
 # Project name engraved into the underside (font via matplotlib; skipped if it is missing)
-LABEL = ("N.I.N.A.", "Pocket Companion")
-LABEL_SIZE = (8.0, 5.0)  # font size per line
+LABEL = ("N.I.N.A.", "Pocket Companion", "\u00a9 2026 by Kai Linde")
+LABEL_SIZE = (8.0, 5.0, 3.5)  # font size per line
 LABEL_MAX_W = 44.0       # lines wider than this are scaled down
 LABEL_GAP = 2.5          # space between the lines
 LABEL_DEPTH = 0.5        # of the 1.2 mm floor
