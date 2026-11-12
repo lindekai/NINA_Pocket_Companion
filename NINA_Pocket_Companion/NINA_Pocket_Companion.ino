@@ -1,5 +1,5 @@
 /*
- N.I.N.A. Pocket Companion 0.2 - READ ONLY
+ N.I.N.A. Pocket Companion 0.3 - READ ONLY
  Copyright (c) 2026 Kai Linde - MIT License, see LICENSE.
  Target: classic LilyGO TTGO T-Display ESP32, portrait 135x240 ST7789.
  Arduino IDE / Adafruit ST7735 and ST7789 Library / Adafruit GFX / ArduinoJson 7.
@@ -618,7 +618,7 @@ void drawAltitude(){
 }
 void drawAbout(){
  header("INFO");
- textAt(6,30,"N.I.N.A. POCKET v0.2",CYAN);
+ textAt(6,30,"N.I.N.A. POCKET v0.3",CYAN);
  textAt(6,43,DEMO_MODE?"DEMO":"LIVE",DEMO_MODE?YELLOW:GREEN);
  textAt(42,43,"READ-ONLY",GREEN);
  kv(58,"Akku",batteryText(),BATTERY_MONITOR&&batPct>=0?batteryColor():GRAY);
@@ -630,6 +630,10 @@ void drawAbout(){
  textAt(6,149,"Port: "+String(NINA_PORT));
  textAt(6,167,"Display aus:",GRAY);
  textAt(6,179,DISPLAY_TIMEOUT_MIN?"nach "+String(DISPLAY_TIMEOUT_MIN)+" min":"nie");
+ textAt(6,194,"Hell:",GRAY);
+ textAt(42,194,"Tag "+String(briDay)+" Nacht "+String(briNight));
+ textAt(6,204,"Nachtmodus:",GRAY);
+ textAt(78,204,nightMode?"an":"aus");
  footer();
 }
 // ---------- Battery ----------

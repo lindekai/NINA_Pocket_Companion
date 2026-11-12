@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.3 – November 2026
+
+### Nachtmodus
+- Beide Tasten gleichzeitig schalten den Nachtmodus um: Das Bild wird in Rottöne auf Schwarz umgerechnet, die Hintergrundbeleuchtung nutzt eigene, niedrige Stufen.
+- Ohne Bildpuffer (Notfallpfad) wird nur gedimmt.
+
+### Helligkeit
+- Hintergrundbeleuchtung per PWM in 5 Stufen, getrennt für Tag (`BRIGHTNESS_DAY`) und Nacht (`BRIGHTNESS_NIGHT`).
+- Linke Taste lang (0,8 s) schaltet die Stufe des aktiven Modus weiter; ein Balken in der Fußzeile zeigt sie 1,5 s lang an.
+- Nachtmodus und beide Stufen werden gespeichert und überleben einen Neustart.
+
+### Bedienung
+- Kurze Tastendrücke wirken jetzt beim Loslassen, damit sich Doppel- und Langdruck davon unterscheiden lassen.
+- Bei ausgeschaltetem Display weckt jede Geste nur das Display.
+
+### Sonstiges
+- Seite **Info** zeigt Helligkeitsstufen und Nachtmodus.
+- Tastenlogik, Rot-Umrechnung und Stufen liegen in `companion_logic.h` und haben Host-Tests (`tools/test_companion_logic.cpp`).
+
+### Noch nicht getestet
+- Noch nicht auf dem Gerät geprüft.
+
 ## v0.2 – November 2026
 
 ### Akku

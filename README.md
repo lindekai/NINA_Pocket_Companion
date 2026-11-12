@@ -7,7 +7,7 @@
   <img alt="Arduino IDE" src="https://img.shields.io/badge/Arduino%20IDE-2.x-0b1530?style=for-the-badge&logo=arduino&logoColor=5ce1ff">
   <img alt="N.I.N.A. Advanced API" src="https://img.shields.io/badge/N.I.N.A.-Advanced%20API%20v2-0b1530?style=for-the-badge">
   <img alt="Read-only" src="https://img.shields.io/badge/Modus-Read--only-0b1530?style=for-the-badge&color=1a7f37">
-  <img alt="Version" src="https://img.shields.io/badge/Version-0.2-0b1530?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/Version-0.3-0b1530?style=for-the-badge">
   <a href="LICENSE"><img alt="Lizenz: MIT" src="https://img.shields.io/badge/Lizenz-MIT-0b1530?style=for-the-badge"></a>
 </p>
 
@@ -29,6 +29,7 @@
 | 🧊 **Ehrliche Anzeige** | Fehlende Werte erscheinen als `--`. Ist N.I.N.A. kurz weg, bleiben die letzten Werte sichtbar und sind mit `ALT` markiert. |
 | ⚡ **Ruhiges, gut lesbares Bild** | Große Schrift für alle Werte, flackerfreier Bildaufbau. Die Tasten bleiben auch bei Netzproblemen bedienbar. |
 | 🔋 **Akku & Stromsparen** | Akkusymbol mit Füllstand in der Kopfzeile. Das Display geht nach einstellbarer Zeit aus und wacht per Tastendruck – oder von selbst bei wichtigen Ereignissen – wieder auf. |
+| 🌙 **Nachtmodus** | Beide Tasten gleichzeitig: alles rot auf Schwarz und stark gedimmt – schont die Dunkeladaption am Teleskop. Helligkeit in 5 Stufen, für Tag und Nacht getrennt gespeichert. |
 | 🧰 **Minimal-Hardware** | Ein LilyGO T-Display, optional ein Akku – Installation komplett über die Arduino IDE, [Gehäuse zum Drucken](hardware/gehaeuse) inklusive. |
 
 ## 📱 Ansichten
@@ -128,6 +129,7 @@ Alles Weitere steht oben im Sketch im Block `CONFIGURE HERE`:
 | `DEMO_MODE` | `true` zeigt Demodaten ohne Netzwerk |
 | `POLL_MS` | Abfrageintervall in Millisekunden (Standard 8000) |
 | `DISPLAY_TIMEOUT_MIN` | Display nach so vielen Minuten ohne Tastendruck ausschalten (Standard 5, `0` = immer an) |
+| `BRIGHTNESS_DAY`, `BRIGHTNESS_NIGHT` | PWM-Werte (0–255) der 5 Helligkeitsstufen für Tag- und Nachtmodus |
 | `POLL_MS_DISPLAY_OFF` | Abfrageintervall bei ausgeschaltetem Display (Standard 30000) – spart Strom |
 | `WAKE_ON_EVENTS` | Display bei Sequenzende, Verbindungsverlust oder leerem Akku selbst einschalten (Standard `true`) |
 | `BATTERY_MONITOR` | Akkumessung an GPIO34 (Standard `true`; auf `false` setzen, wenn kein Akku angeschlossen ist) |
@@ -152,6 +154,17 @@ Fortschritt und gefundene Adresse siehst du im Hauptmenü und auf der Seite **In
 |---|---|---|
 | **Hauptmenü** | Cursor weiter | Auswahl öffnen |
 | **Unterseiten** | Nächste Seite | Zurück ins Hauptmenü |
+
+Kurze Tastendrücke wirken beim **Loslassen**. Dazu kommen zwei Gesten, die auf jeder Seite funktionieren:
+
+| Geste | Wirkung |
+|---|---|
+| **Beide Tasten** gleichzeitig | Nachtmodus an/aus |
+| **Links lang** (0,8 s) | Helligkeit eine Stufe weiter (1 → 5 → 1), kurz als Balken in der Fußzeile |
+
+### 🌙 Nachtmodus
+
+Im Nachtmodus wird das ganze Bild in Rottöne umgerechnet (Helligkeit bleibt erhalten, Farben nicht) und die Hintergrundbeleuchtung nutzt eigene, sehr niedrige Stufen. Tag- und Nachthelligkeit werden getrennt eingestellt. Modus und Stufen bleiben nach einem Neustart erhalten und stehen auf der Seite **Info**.
 
 > [!IMPORTANT]
 > GPIO0 ist der BOOT-Pin: beim Einschalten oder Reset **nicht** gedrückt halten.
@@ -222,7 +235,7 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 - Statusabfragen blockieren kurz (Verbindungs-Timeout 1,5 s). Ist N.I.N.A. nicht erreichbar, werden die übrigen Abfragen der Runde übersprungen.
 - Keine Online-Bilder oder Wetterdaten.
 - Der Akku-Ladestand ist eine Schätzung aus der Spannung, keine Coulomb-Zählung. Ob geladen wird oder nur USB steckt, lässt sich mit der Board-Hardware nicht unterscheiden.
-- Läuft auf einem LilyGO T-Display (`ESP32 Dev Module`, ESP32-Core 3.3.12). Auf dem Gerät geprüft: Anzeige, Verbindung zu N.I.N.A., Akkuanzeige mit und ohne USB sowie Display-Timeout. Ein Live-Betrieb über eine ganze Nacht steht noch aus.
+- Läuft auf einem LilyGO T-Display (`ESP32 Dev Module`, ESP32-Core 3.3.12). Auf dem Gerät geprüft: Anzeige, Verbindung zu N.I.N.A., Akkuanzeige mit und ohne USB sowie Display-Timeout. Ein Live-Betrieb über eine ganze Nacht steht noch aus. Nachtmodus und Helligkeit (v0.3) sind noch nicht auf dem Gerät getestet.
 
 ## 🗺️ Ideen für später
 
@@ -230,6 +243,7 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 - [ ] Frame-Zähler mit einer laufenden Schleife bestätigen
 - [ ] Echte Flip-Markierung aus den N.I.N.A.-Einstellungen
 - [x] Akkuanzeige und Display-Timeout (v0.2)
+- [x] Nachtmodus und Helligkeitssteuerung (v0.3)
 - [ ] Laufzeit mit Akku messen und dokumentieren
 - [ ] Asynchroner API-Client
 - [ ] Fotos vom Gerät im Einsatz

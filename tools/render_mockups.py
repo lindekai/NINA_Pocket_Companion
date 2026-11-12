@@ -332,7 +332,7 @@ class Pages:
 
     def about(self):
         self.header("INFO")
-        self.text(6, 30, "N.I.N.A. POCKET v0.2", CYAN)
+        self.text(6, 30, "N.I.N.A. POCKET v0.3", CYAN)
         self.text(6, 43, "LIVE", GREEN)
         self.text(42, 43, "READ-ONLY", GREEN)
         self.kv(58, "Akku", f"{D['bat_mv'] / 1000:.2f}V {D['bat_pct']}%", GREEN)
@@ -343,6 +343,10 @@ class Pages:
         self.text(6, 149, "Port: 1888")
         self.text(6, 167, "Display aus:", GRAY)
         self.text(6, 179, "nach 5 min")
+        self.text(6, 194, "Hell:", GRAY)
+        self.text(42, 194, "Tag 5 Nacht 2")
+        self.text(6, 204, "Nachtmodus:", GRAY)
+        self.text(78, 204, "aus")
         self.footer()
 
 

@@ -70,7 +70,7 @@ Folge: Kurzes Drücken wirkt erst beim Loslassen. Das ist bewusst so, denn nur d
 
 Unter „Display aus“ (y = 167/179) kommen zwei Zeilen hinzu, Schriftgröße 1:
 
-- y = 194: `Hell: Tag 3/5 Nacht 2/5`
+- y = 194: `Hell: Tag 3 Nacht 2` (23 Zeichen hätten nicht in 21 Zeichen Breite gepasst; die 5 Stufen zeigt der Balken.)
 - y = 204: `Nachtmodus: an` / `Nachtmodus: aus`
 
 Bezeichnungen in `GRAY`, Werte in `WHITE`, passend zum bestehenden Stil. Beide Zeilen müssen oberhalb der Fußzeilenlinie (y = 216) bleiben.
