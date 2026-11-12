@@ -35,7 +35,7 @@ FRONT_H = 1.8       # display glass surface above the PCB top - assumed
 WIN_W, WIN_L, WIN_CX = 16.0, 27.0, 19.5  # WIN_CX estimated from a photo
 WIN_CHAMFER = 1.0
 # Buttons GPIO0 / GPIO35, measured from the tip of the USB-C socket and from each long edge
-BTN_FROM_USB, BTN_FROM_SIDE = 6.3, 4.0
+BTN_FROM_USB, BTN_FROM_SIDE = 10.0, 4.0
 BTN_H = 1.8         # top of the push button above the PCB top - estimated from a photo
 # USB-C socket: mid-mount, sits in a notch of the board and reaches down to the PCB bottom
 USB_TOP = 1.2       # top of the socket above the PCB top - measured

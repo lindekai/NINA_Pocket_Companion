@@ -30,6 +30,27 @@ Zweiteiliges Gehäuse für das LilyGO T-Display (52 × 26 × 6 mm) mit einem 110
 
 Gemessen sind Platine (52 × 26 × 6 mm, die 52 mm **mit** USB-Buchse) und Akku (47 × 29 × 8 mm). Die übrigen Werte sind **angenommen oder aus Fotos geschätzt** und sollten vor dem Druck mit dem Messschieber geprüft werden; sie stehen oben in [`gehaeuse.py`](gehaeuse.py):
 
+Draufsicht auf das USB-Ende (Display oben, schematisch, nicht maßstäblich). `[+]` ist die **Mitte** eines Tasters, gemessen wird parallel zur Längskante:
+
+```
+  TTGO-Ende                                  USB-Seite
+  ┌─────────────────────────────────────────┐
+  │                       Taster [+]        │
+  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ┌───────────────┴─────────┐
+  │  ▓▓▓▓▓▓ Display ▓▓▓▓▓▓  │        USB-C-Buchse     │
+  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  └───────────────┬─────────┘
+  │                       Taster [+]        │
+  └─────────────────────────────────────────┘
+                            ┊     ┊         ┊         ┊
+                                  ├───────────────────┤ BTN_FROM_USB 10,0
+                                            ├─────────┤ USB_OUT 5,0
+                            ├───────────────┤ USB_LEN 8,0
+```
+
+- **Buchsenspitze** ist die Stirnfläche der USB-C-Buchse, in die das Kabel gesteckt wird.
+- `BTN_FROM_USB` geht von dort bis zur Mitte des Tasters, nicht bis zu seiner Kante. Leichter zu messen: von der Buchsenspitze bis zur fernen Kante des Tasters, davon die halbe Tasterbreite abziehen.
+- Probe: `BTN_FROM_USB` − `USB_OUT` ist der Abstand der Tastermitte von der Platinenkante.
+
 | Parameter | Wert | Herkunft | Was messen |
 |---|---|---|---|
 | `PCB_L` | 47,0 mm | 52 − `USB_OUT` | Platinenlänge **ohne** die überstehende Buchse |
@@ -40,7 +61,7 @@ Gemessen sind Platine (52 × 26 × 6 mm, die 52 mm **mit** USB-Buchse) und Akku 
 | `BACK_H` | 2,6 mm | Annahme | höchstes Bauteil auf der Rückseite (ergibt mit 1,6 mm Platine und `FRONT_H` die 6 mm) |
 | `WIN_CX` | 19,5 mm | Foto | Mitte des sichtbaren Displays, gemessen vom Platinenende **ohne** USB (TTGO-Ende) |
 | `WIN_W`, `WIN_L` | 16 × 27 mm | – | Fensterausschnitt; sichtbare Fläche ca. 14,9 × 24,9 mm, der Rest ist Spielraum |
-| `BTN_FROM_USB` | 6,3 mm | Messung | Mitte der Taster, gemessen von der **Spitze der USB-Buchse** |
+| `BTN_FROM_USB` | 10,0 mm | Messung | Mitte der Taster, gemessen von der **Spitze der USB-Buchse** |
 | `BTN_FROM_SIDE` | 4,0 mm | Messung | Mitte der Taster, gemessen von der Längskante |
 | `BTN_H` | 1,8 mm | Foto | Oberkante der Taster über der Platinenoberseite |
 
