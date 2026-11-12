@@ -28,18 +28,18 @@ from manifold3d import CrossSection, JoinType, Manifold
 # ------------------------------ PARAMETERS ------------------------------
 # T-Display board: measured 52 x 26 x 6 mm overall (52 incl. the USB-C socket,
 # 6 = BACK_H + PCB_T + FRONT_H)
-PCB_L, PCB_W, PCB_T = 47.0, 26.0, 1.6   # PCB_L: board only, without the protruding socket
+PCB_L, PCB_W, PCB_T = 50.0, 26.0, 1.6   # PCB_L: board only, without the protruding socket
 BACK_H = 2.6        # tallest part on the back side (ESP32 module, JST plug) - assumed
 FRONT_H = 1.8       # display glass surface above the PCB top - assumed
 # Display window (active area ~14.9 x 24.9 mm), centre measured from the PCB end without USB
 WIN_W, WIN_L, WIN_CX = 16.0, 27.0, 19.5  # WIN_CX estimated from a photo
 WIN_CHAMFER = 1.0
 # Buttons GPIO0 / GPIO35, measured from the tip of the USB-C socket and from each long edge
-BTN_FROM_USB, BTN_FROM_SIDE = 10.0, 4.0
+BTN_FROM_USB, BTN_FROM_SIDE = 7.0, 4.0
 BTN_H = 1.8         # top of the push button above the PCB top - estimated from a photo
 # USB-C socket: mid-mount, sits in a notch of the board and reaches down to the PCB bottom
 USB_TOP = 1.2       # top of the socket above the PCB top - measured
-USB_OUT = 5.0       # how far the socket sticks out beyond the board edge - measured
+USB_OUT = 2.0       # how far the socket sticks out beyond the board edge - measured
 USB_LEN = 7.0       # how far the socket reaches into the board from the board edge - measured
 # USB-C opening in the end wall, centred on the socket; open towards the lid if it reaches the rim
 USB_W, USB_H = 12.0, 6.0
