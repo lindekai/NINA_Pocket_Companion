@@ -34,6 +34,13 @@ def rgb565(c):
     return (r * 255 // 31, g * 255 // 63, b * 255 // 31)
 
 
+def night_pixel(c):
+    """Night mode: RGB565 -> red only, keeping the perceived brightness (nightPixel())."""
+    r, g, b = (c >> 11) & 0x1F, (c >> 5) & 0x3F, c & 0x1F
+    l = (r * 2 * 77 + g * 150 + b * 2 * 29) >> 8
+    return (l >> 1) << 11
+
+
 BG, PANEL, CYAN, GREEN = 0x0006, 0x084D, 0x07FF, 0x07E0
 YELLOW, WHITE, GRAY, RED = 0xFFE0, 0xFFFF, 0xA514, 0xF800
 LINE, GRID = 0x19CA, 0x18E3
@@ -58,10 +65,11 @@ class Screen:
         self.cx = self.cy = 0
         self.size = 1
         self.fg = self.bg = WHITE
+        self.night = False
 
     def pixel(self, x, y, c):
         if 0 <= x < W and 0 <= y < H:
-            self.px[x, y] = rgb565(c)
+            self.px[x, y] = rgb565(night_pixel(c) if self.night else c)
 
     def fill_rect(self, x, y, w, h, c):
         for yy in range(y, y + h):
@@ -176,8 +184,9 @@ def yes_no(v):
 
 
 class Pages:
-    def __init__(self, scr):
+    def __init__(self, scr, level=None):
         self.s = scr
+        self.level = level  # brightness bar in the footer (shown 1.5 s after a long press)
 
     def text(self, x, y, s, c=WHITE, size=1, bg=BG):
         self.s.fg, self.s.bg, self.s.size = c, bg, size
@@ -204,6 +213,15 @@ class Pages:
 
     def footer(self, left="WEITER", right="MENU"):
         self.sep(216)
+        if self.level:
+            self.text(6, 224, "HELL", GRAY)
+            for i in range(5):
+                x = 36 + i * 12
+                if i < self.level:
+                    self.s.fill_rect(x, 224, 9, 8, WHITE)
+                else:
+                    self.s.draw_rect(x, 224, 9, 8, GRAY)
+            return
         self.text(6, 224, left, GRAY)
         self.text(77, 224, right, GRAY)
 
@@ -527,6 +545,7 @@ def main():
         "~/Documents/Arduino/libraries/Adafruit_GFX_Library/glcdfont.c"
     glyphs = load_font(font_path)
     now = demo_time()
+    # key, label, draw, night mode, brightness bar level
     pages = [("home", "Hauptmenü", lambda p: p.home()),
              ("system", "Systemstatus", lambda p: p.system()),
              ("session", "Session", lambda p: p.session()),
@@ -535,12 +554,17 @@ def main():
              ("filter", "Filterrad", lambda p: p.filter()),
              ("object", "Objekt", lambda p: p.object()),
              ("altitude", "Höhenverlauf", lambda p: p.altitude(now)),
-             ("about", "Info", lambda p: p.about())]
+             ("about", "Info", lambda p: p.about()),
+             ("night-session", "Nacht: Session", lambda p: p.session(), True),
+             ("night-altitude", "Nacht: Höhe", lambda p: p.altitude(now), True),
+             ("brightness", "Helligkeit", lambda p: p.system(), False, 3)]
     (OUT / "screens").mkdir(parents=True, exist_ok=True)
     screens = {}
-    for key, label, draw in pages:
+    for key, label, draw, *opts in pages:
+        night, level = (opts + [False, None])[:2]
         scr = Screen(glyphs)
-        draw(Pages(scr))
+        scr.night = night
+        draw(Pages(scr, level))
         screens[key] = scr.img
         gallery_tile(scr.img, label).save(OUT / "screens" / f"{key}.png", optimize=True)
         print("screen", key)

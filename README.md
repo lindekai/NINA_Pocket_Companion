@@ -50,10 +50,15 @@
     <td align="center"><img src="docs/images/screens/altitude.png" width="200" alt="Höhenverlauf"></td>
     <td align="center"><img src="docs/images/screens/about.png" width="200" alt="Info"></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/images/screens/night-session.png" width="200" alt="Nachtmodus: Session"></td>
+    <td align="center"><img src="docs/images/screens/night-altitude.png" width="200" alt="Nachtmodus: Höhenverlauf"></td>
+    <td align="center"><img src="docs/images/screens/brightness.png" width="200" alt="Helligkeitsbalken in der Fußzeile"></td>
+  </tr>
 </table>
 
 > [!NOTE]
-> Die Bilder sind **pixelgenaue Mockups** mit Demodaten: Sie werden von [`tools/render_mockups.py`](tools/render_mockups.py) mit denselben Koordinaten, Farben und derselben 5×7-Schrift erzeugt wie auf dem echten 135 × 240-Display.
+> Die Bilder sind **pixelgenaue Mockups** mit Demodaten: Sie werden von [`tools/render_mockups.py`](tools/render_mockups.py) mit denselben Koordinaten, Farben und derselben 5×7-Schrift erzeugt wie auf dem echten 135 × 240-Display. Die Nachtbilder nutzen dieselbe Rot-Umrechnung wie die Firmware; die gedimmte Hintergrundbeleuchtung lässt sich im Bild nicht zeigen.
 
 ## 📸 Im Einsatz
 
