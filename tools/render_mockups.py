@@ -155,7 +155,7 @@ class Screen:
 D = dict(api=True, camera=True, mount=True, guider=True, wheel=True, focuser=True,
          running=True, parked=False, temp=-9.8, target_temp=-10.0, rms=0.52,
          alt=62.3, az=314.8, ra=23.345, dec=61.216, filter="Ha 7nm",
-         target="NGC 7635", sequence="Bubble Nebula Ha", camera_name="ToupTek",
+         target="NGC 7635", step="Belichtung ausfuehren", camera_name="ATR2600C", cooler=48,
          completed=42, total=120, exposure=300)
 SITE_LAT, SITE_LON = 52.52, 13.40
 WIFI_IP, NINA_IP = "192.168.1.42", "192.168.1.20"
@@ -195,7 +195,10 @@ class Pages:
 
     def kv(self, y, label, value, c=WHITE):
         self.text(6, y, cut(label, 20), GRAY)
-        self.text(6, y + 11, cut(value, 10), c, 2)
+        if len(value) <= 10:
+            self.text(6, y + 11, value, c, 2)
+        else:
+            self.text(6, y + 15, cut(value, 21), c)
         self.sep(y + 30)
 
     def row(self, y, label, val, c=WHITE):
@@ -234,7 +237,7 @@ class Pages:
         self.header("SESSION")
         self.text(6, 30, "AKTIV", GREEN, 2)
         self.kv(52, "Objekt", D["target"], CYAN)
-        self.kv(85, "Sequenz", D["sequence"])
+        self.kv(85, "Schritt", D["step"])
         self.kv(118, "Frames", f"{D['completed']}/{D['total']}")
         self.kv(151, "Belichtung", f"{D['exposure']} s")
         self.footer()
@@ -245,13 +248,15 @@ class Pages:
         self.kv(44, "Verbindung", "OK", GREEN)
         self.kv(77, "Ist-Temperatur", f"{D['temp']:.1f}{DEG}C", CYAN)
         self.kv(110, "Soll-Temperatur", f"{D['target_temp']:.1f}{DEG}C")
+        self.kv(143, "Kuehlleistung", f"{D['cooler']} %")
         self.footer()
 
     def guiding(self):
         self.header("GUIDING")
         self.kv(32, "Guider", "OK", GREEN)
-        self.kv(65, "RMS gesamt", f"{D['rms']:.2f}\"", GREEN)
-        self.text(6, 110, "Nur N.I.N.A. Daten", GRAY)
+        self.kv(65, "Status", "Guiding", GREEN)
+        self.kv(98, "RMS gesamt", f"{D['rms']:.2f}\"", GREEN)
+        self.text(6, 143, "Nur N.I.N.A. Daten", GRAY)
         self.footer()
 
     def filter(self):

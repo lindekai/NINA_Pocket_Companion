@@ -27,7 +27,7 @@
 | 📡 **Auto-Discovery** | Leere Host-Angabe genügt: Der Companion findet den N.I.N.A.-PC im lokalen Netz selbst und merkt sich die Adresse. |
 | 📈 **Höhenverlauf** | ±4 Stunden um jetzt, berechnet aus RA/Dec der Montierung und deinem Standort – inkl. Meridiandurchgang. |
 | 🧊 **Ehrliche Anzeige** | Fehlende Werte erscheinen als `--`. Ist N.I.N.A. kurz weg, bleiben die letzten Werte sichtbar und sind mit `ALT` markiert. |
-| ⚡ **Ruhiges Bild** | Seiten werden im Hintergrund aufgebaut und flackerfrei übertragen. Die Tasten bleiben auch bei Netzproblemen bedienbar. |
+| ⚡ **Ruhiges, gut lesbares Bild** | Große Schrift für alle Werte, flackerfreier Bildaufbau. Die Tasten bleiben auch bei Netzproblemen bedienbar. |
 | 🧰 **Minimal-Hardware** | Ein LilyGO T-Display, optional ein Akku – Installation komplett über die Arduino IDE, [Gehäuse zum Drucken](hardware/gehaeuse) inklusive. |
 
 ## 📱 Ansichten
@@ -153,13 +153,15 @@ Fortschritt und gefundene Adresse siehst du im Hauptmenü und auf der Seite **In
 
 ## 🔭 Die Ansichten im Detail
 
-- **Systemstatus** – auch **ohne laufende Sequenz** aufrufbar: Verbindung von Kamera, Montierung, Guider, Filterrad und Fokussierer.
-- **Session** – Ziel, Sequenz, Frames und Belichtungszeit.
-- **Kamera** – Ist- und Soll-Temperatur.
-- **Guiding** – Gesamt-RMS in Bogensekunden.
+- **Systemstatus** – auch **ohne laufende Sequenz** aufrufbar: Verbindung von Kamera, Montierung, Guider, Filterrad und Fokussierer, dazu Filter und Kameratemperatur.
+- **Session** – Status (`AKTIV`, `INAKTIV`, `BEENDET`), aktuelles Ziel, der gerade laufende Schritt der Sequenz (z. B. „Kamera kuehlen“), Frames und Belichtungszeit. Nach dem Ende bleibt das zuletzt bearbeitete Ziel sichtbar.
+- **Kamera** – Name, Ist- und Soll-Temperatur sowie die Kühlleistung in Prozent.
+- **Guiding** – Verbindung, Status des Guiders (z. B. `Guiding`, `Stopped`) und Gesamt-RMS in Bogensekunden. Der RMS erscheint nur, solange geguidet wird – ein `0.00″` bei gestopptem Guiding wäre irreführend.
 - **Filterrad** – aktiver Filter.
-- **Objekt** – Ziel, Höhe, Azimut und Koordinaten der Montierung.
-- **Höhenverlauf** – Kurve ±4 Stunden um jetzt; grüne Markierung für die aktuelle Position, gestrichelte gelbe Linie für den Meridiandurchgang.
+- **Objekt** – Ziel, Höhe, Azimut, RA und Dec der Montierung.
+- **Höhe** – Kurve ±4 Stunden um jetzt; grüne Markierung für die aktuelle Position, gestrichelte gelbe Linie für den Meridiandurchgang.
+
+**Lesbarkeit:** Werte und Seitentitel stehen in doppelter Schriftgröße. Längere Texte (über 10 Zeichen) erscheinen klein, aber vollständig bis 21 Zeichen. Umlaute aus N.I.N.A. werden umschrieben (ü → ue), weil die Display-Schrift kein UTF-8 kennt.
 
 > [!CAUTION]
 > Die Transitmarkierung ist **keine bestätigte N.I.N.A.-Flip-Planung**. Eine echte Flip-Markierung bräuchte zusätzliche Konfigurations- und Sequenzinformationen aus N.I.N.A.
@@ -186,17 +188,20 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 
 ## 🚧 Grenzen von v0.1
 
-- Die JSON-Strukturen unterscheiden sich je nach Advanced-API-Version und installierten Plugins. Bekannte Felder werden defensiv gelesen; fehlt eines, erscheint `--`. Sequenz-Fortschritt, Filtername und RMS brauchen ggf. noch einen Abgleich mit echten Antworten.
+- Ausgewertet wird das Format der **Advanced API v2**, abgeglichen mit echten Antworten (Sequenzbaum, Kamera mit Kühlung, PHD2-Guider). Andere Versionen oder Plugins können abweichen; fehlt ein Feld, erscheint `--`.
+- Die **Frame-Anzeige** (z. B. `12/30`) liest die Schleifen-Bedingung des Containers mit der Belichtung. Dieser Teil ist noch nicht mit einer echten Antwort geprüft; ohne Schleife bleibt sie bei `--/--`.
+- Sehr lange Sequenzen ergeben große JSON-Antworten; sie müssen in den freien Arbeitsspeicher des ESP32 (ca. 270 KB) passen.
 - Die Höhenkurve nutzt die aktuell von der Montierung gemeldeten RA/Dec-Koordinaten, **nicht zwingend** das geplante N.I.N.A.-Ziel. Ohne plausible Koordinaten wird keine Kurve gezeichnet.
 - Auto-Discovery durchsucht nur das eigene /24-Netz (z. B. `192.168.1.x`).
 - Statusabfragen blockieren kurz (Verbindungs-Timeout 1,5 s). Ist N.I.N.A. nicht erreichbar, werden die übrigen Abfragen der Runde übersprungen.
 - Keine Online-Bilder oder Wetterdaten.
 - Keine Akkuanzeige – Kalibrierung und Akkumessung sind boardabhängig, ein Prozentwert würde nur etwas vortäuschen.
-- Der Sketch kompiliert für `ESP32 Dev Module` (ESP32-Core 3.3.12); ein Test auf echter Hardware steht noch aus.
+- Läuft auf einem LilyGO T-Display (`ESP32 Dev Module`, ESP32-Core 3.3.12). Nicht jede Anzeige ist schon im Live-Betrieb einer ganzen Nacht geprüft.
 
 ## 🗺️ Ideen für später
 
-- [ ] Abgleich der Felder mit echten Advanced-API-Antworten (Sequenz, RMS, Soll-Temperatur)
+- [x] Abgleich der Felder mit echten Advanced-API-Antworten (Sequenz, Kamera, Guider)
+- [ ] Frame-Zähler mit einer laufenden Schleife bestätigen
 - [ ] Echte Flip-Markierung aus den N.I.N.A.-Einstellungen
 - [ ] Asynchroner API-Client
 - [ ] Fotos vom Gerät im Einsatz
@@ -211,6 +216,10 @@ python3 tools/render_mockups.py
 ```
 
 Das Skript liest die Schrift aus der installierten Adafruit GFX Library und schreibt nach `docs/images/`.
+
+## 📝 Änderungen
+
+Alle Änderungen stehen im [CHANGELOG](CHANGELOG.md).
 
 ## 👤 Autor
 
