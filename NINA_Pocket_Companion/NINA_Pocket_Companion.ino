@@ -93,6 +93,7 @@ bool batUsb=false, batLowWarned=false;
 // Night mode and brightness levels (1-5), stored in Preferences.
 bool nightMode=false;
 uint8_t briDay=DEFAULT_LEVEL_DAY, briNight=DEFAULT_LEVEL_NIGHT;
+uint32_t overlayUntil=0; // brightness bar in the footer until this millis(), 0 = off
 // Declared here: the Arduino IDE generates no prototypes for functions with default arguments.
 void wakeDisplay(int target=-1);
 
@@ -449,8 +450,18 @@ void header(String title) {
  gfx->fillCircle(126,11,3,WiFi.status()==WL_CONNECTED?GREEN:RED);
  line(24);
 }
+bool overlayActive(){return overlayUntil&&(int32_t)(overlayUntil-millis())>0;}
 void footer(const String &left="WEITER",const String &right="MENU") {
- line(216);textAt(6,224,left,GRAY);textAt(77,224,right,GRAY);
+ line(216);
+ if(overlayActive()){
+  textAt(6,224,"HELL",GRAY);
+  for(int i=0;i<5;i++){
+   int x=36+i*12;
+   if(i<activeLevel())gfx->fillRect(x,224,9,8,WHITE);else gfx->drawRect(x,224,9,8,GRAY);
+  }
+  return;
+ }
+ textAt(6,224,left,GRAY);textAt(77,224,right,GRAY);
  if(data.stale)textAt(51,224,"ALT",YELLOW);
 }
 // Label (small) above a value: large if it fits (10 chars), otherwise small (21 chars).
@@ -695,25 +706,53 @@ void render(){
  case OBJECT:drawObject();break;case ALTITUDE:drawAltitude();break;case ABOUT:drawAbout();break;
  default:break;
  }
- if(canvas)tft.drawRGBBitmap(0,0,canvas->getBuffer(),W,H);
+ if(canvas){
+  uint16_t *buf=canvas->getBuffer();
+  // Every page redraws the whole canvas, so it can be converted in place.
+  if(nightMode)for(uint32_t i=0;i<(uint32_t)W*H;i++)buf[i]=nightPixel(buf[i]);
+  tft.drawRGBBitmap(0,0,buf,W,H);
+ }
  dirty=false;lastDraw=millis();
 }
-void processButton(uint8_t pin,bool &previous,uint32_t &changed,bool nextButton){
- bool pressed=(digitalRead(pin)==LOW);
- if(pressed!=previous && millis()-changed>40){
-  changed=millis();previous=pressed;
-  if(pressed){
-   if(!displayOn){wakeDisplay();return;} // first press only wakes the display
-   lastActivity=millis();
-   if(page==HOME){
-    if(nextButton)navCursor=(navCursor+1)%8;
-    else page=(Page)(navCursor+1);
-   }else{
-    if(nextButton)page=(Page)((page==ABOUT)?SYSTEM:((int)page+1));
-    else page=HOME;
-   }
-   dirty=true;
-  }
+void shortPress(bool nextButton){
+ if(page==HOME){
+  if(nextButton)navCursor=(navCursor+1)%8;
+  else page=(Page)(navCursor+1);
+ }else{
+  if(nextButton)page=(Page)((page==ABOUT)?SYSTEM:((int)page+1));
+  else page=HOME;
+ }
+ dirty=true;
+}
+void toggleNightMode(){
+ nightMode=!nightMode;
+ prefs.putBool("night",nightMode);
+ applyBacklight();dirty=true;
+}
+void stepBrightness(){
+ uint8_t &level=nightMode?briNight:briDay;
+ level=nextLevel(level);
+ prefs.putUChar(nightMode?"briNight":"briDay",level);
+ applyBacklight();
+ overlayUntil=millis()+1500;if(!overlayUntil)overlayUntil=1;
+ dirty=true;
+}
+void handleKeys(){
+ static Debounce nextKey,pageKey;
+ static GestureDetector gestures;
+ uint32_t now=millis();
+ bool next=nextKey.update(digitalRead(BTN_NEXT)==LOW,now);
+ bool pg=pageKey.update(digitalRead(BTN_PAGE)==LOW,now);
+ Gesture g=gestures.update(next,pg,now,displayOn);
+ if(g==G_NONE)return;
+ if(g==G_WAKE){wakeDisplay();return;} // first press only wakes the display
+ lastActivity=now;
+ switch(g){
+ case G_SHORT_NEXT:shortPress(true);break;
+ case G_SHORT_PAGE:shortPress(false);break;
+ case G_BOTH:toggleNightMode();break;
+ case G_LONG_NEXT:stepBrightness();break;
+ default:break;
  }
 }
 void setup(){
@@ -752,10 +791,7 @@ void setup(){
  pollNina();render();lastPoll=millis();lastActivity=millis();
 }
 void loop(){
- static bool wasNext=false,wasPage=false;
- static uint32_t changedNext=0,changedPage=0;
- processButton(BTN_NEXT,wasNext,changedNext,true);
- processButton(BTN_PAGE,wasPage,changedPage,false);
+ handleKeys();
  if(!DEMO_MODE&&WiFi.status()!=WL_CONNECTED&&millis()-lastWiFiTry>15000){
   lastWiFiTry=millis();WiFi.reconnect();
  }
@@ -769,6 +805,7 @@ void loop(){
  static uint32_t lastBat=0;
  if(BATTERY_MONITOR&&millis()-lastBat>=2000){lastBat=millis();readBattery();}
  if(displayOn&&DISPLAY_TIMEOUT_MIN&&millis()-lastActivity>=DISPLAY_TIMEOUT_MIN*60000UL)sleepDisplay();
+ if(overlayUntil&&!overlayActive()){overlayUntil=0;dirty=true;} // hide the brightness bar
  if(displayOn&&(dirty||(page==ALTITUDE&&millis()-lastDraw>30000)))render();
  delay(15);
 }
