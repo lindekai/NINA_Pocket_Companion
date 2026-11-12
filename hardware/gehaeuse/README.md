@@ -20,6 +20,7 @@ Zweiteiliges Gehäuse für das LilyGO T-Display (52 × 26 × 6 mm) mit einem 110
 ```
 
 - Der Akku ist breiter als die Platine. Das Unterteil richtet sich nach dem Akku; **Führungsleisten am Deckel** halten die Platine seitlich mittig (±0,3 mm Spiel) und drücken sie am Rand nach unten.
+- Die **USB-C-Buchse** steckt in einer Aussparung der Platine: Sie reicht unten bis zur Platinenunterseite, oben bis etwa auf Displayhöhe und steht ca. 4 mm über die Platinenkante hinaus. Die Taster sind fast genauso hoch. Auf den letzten `USB_LEN` + 0,5 mm zur USB-Seite drückt der Deckel deshalb **nicht** auf die Platine und ist innen bis zu 0,6 mm ausgespart; gehalten wird die Platine dort von der Buchse in der Wandöffnung.
 - Die **Tasten** sind federnde Zungen im Deckel mit einem Stößel auf der Unterseite. Kleine Mulden auf der Oberseite machen sie ertastbar.
 - Der Deckel **rastet** über zwei Nasen in eine Nut an den Längsseiten ein.
 - Der Akku ist 5 mm kürzer als die Platine. Dieser **Freiraum** nimmt das Akkukabel auf, das zum Stecker auf der Rückseite der Platine hochgeführt wird.
@@ -27,21 +28,37 @@ Zweiteiliges Gehäuse für das LilyGO T-Display (52 × 26 × 6 mm) mit einem 110
 
 ## Maße
 
-Gemessen sind Platine (52 × 26 × 6 mm) und Akku (47 × 29 × 8 mm). Diese Werte sind noch **angenommen** und sollten vor dem Druck geprüft werden; sie stehen oben in [`gehaeuse.py`](gehaeuse.py):
+Gemessen sind Platine (52 × 26 × 6 mm, die 52 mm **mit** USB-Buchse) und Akku (47 × 29 × 8 mm). Die übrigen Werte sind **angenommen oder aus Fotos geschätzt** und sollten vor dem Druck mit dem Messschieber geprüft werden; sie stehen oben in [`gehaeuse.py`](gehaeuse.py):
 
-| Parameter | Annahme | Was messen |
-|---|---|---|
-| `FRONT_H` | 1,8 mm | Displayoberfläche über der Platinenoberseite |
-| `BACK_H` | 2,6 mm | höchstes Bauteil auf der Rückseite (ergibt mit 1,6 mm Platine und `FRONT_H` die 6 mm) |
-| `WIN_CX` | 21,0 mm | Mitte des sichtbaren Displays, gemessen vom Platinenende **ohne** USB |
-| `BTN_FROM_USB`, `BTN_FROM_SIDE` | 4,5 / 4,0 mm | Mitte der Taster, gemessen von USB-Kante bzw. Längskante |
-| `BTN_H` | 1,5 mm | Oberkante der Taster über der Platine |
+| Parameter | Wert | Herkunft | Was messen |
+|---|---|---|---|
+| `PCB_L` | 48,0 mm | 52 − `USB_OUT` | Platinenlänge **ohne** die überstehende Buchse |
+| `USB_OUT` | 4,0 mm | Foto | wie weit die Buchse über die Platinenkante hinausragt |
+| `USB_LEN` | 7,4 mm | Foto | wie weit die Buchse von der Platinenkante in die Platine hineinreicht |
+| `USB_TOP` | 2,0 mm | Foto | Oberkante der Buchse über der Platinenoberseite |
+| `FRONT_H` | 1,8 mm | Annahme | Displayoberfläche über der Platinenoberseite |
+| `BACK_H` | 2,6 mm | Annahme | höchstes Bauteil auf der Rückseite (ergibt mit 1,6 mm Platine und `FRONT_H` die 6 mm) |
+| `WIN_CX` | 19,5 mm | Foto | Mitte des sichtbaren Displays, gemessen vom Platinenende **ohne** USB (TTGO-Ende) |
+| `WIN_W`, `WIN_L` | 16 × 27 mm | – | Fensterausschnitt; sichtbare Fläche ca. 14,9 × 24,9 mm, der Rest ist Spielraum |
+| `BTN_FROM_USB` | 6,2 mm | Foto | Mitte der Taster, gemessen von der **Spitze der USB-Buchse** |
+| `BTN_FROM_SIDE` | 4,0 mm | Messung | Mitte der Taster, gemessen von der Längskante |
+| `BTN_H` | 1,8 mm | Foto | Oberkante der Taster über der Platinenoberseite |
+
+Ist die Buchse oder sind die Taster höher, als der Deckel aufnehmen kann, bricht das Skript mit einer Meldung ab, statt ein unpassendes Gehäuse zu erzeugen.
 
 Danach neu erzeugen:
 
 ```bash
 pip install manifold3d numpy
 python3 hardware/gehaeuse/gehaeuse.py
+```
+
+Für sehr neue Python-Versionen gibt es oft noch kein fertiges `manifold3d`-Paket, und der Build aus dem Quellcode scheitert (z. B. an fehlendem `tbb`). Dann mit einem älteren Python eine eigene Umgebung anlegen, z. B. mit dem System-Python von macOS:
+
+```bash
+/usr/bin/python3 -m venv .venv-gehaeuse
+.venv-gehaeuse/bin/pip install --only-binary=:all: manifold3d numpy
+.venv-gehaeuse/bin/python hardware/gehaeuse/gehaeuse.py
 ```
 
 > [!TIP]

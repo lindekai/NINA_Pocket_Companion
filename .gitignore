@@ -3,3 +3,4 @@ __pycache__/
 NINA_Pocket_Companion/secrets.h
 NINA_Pocket_Companion/build/
 NINA_Sequence/
+.venv-gehaeuse/

@@ -26,18 +26,23 @@ import numpy as np
 from manifold3d import CrossSection, JoinType, Manifold
 
 # ------------------------------ PARAMETERS ------------------------------
-# T-Display board: measured 52 x 26 x 6 mm overall (6 = BACK_H + PCB_T + FRONT_H)
-PCB_L, PCB_W, PCB_T = 52.0, 26.0, 1.6
+# T-Display board: measured 52 x 26 x 6 mm overall (52 incl. the USB-C socket,
+# 6 = BACK_H + PCB_T + FRONT_H)
+PCB_L, PCB_W, PCB_T = 48.0, 26.0, 1.6   # PCB_L: board only, without the protruding socket
 BACK_H = 2.6        # tallest part on the back side (ESP32 module, JST plug) - assumed
 FRONT_H = 1.8       # display glass surface above the PCB top - assumed
-# Display window (visible area ~14.2 x 25.2 mm), centre measured from the PCB end without USB
-WIN_W, WIN_L, WIN_CX = 15.0, 26.0, 21.0
+# Display window (active area ~14.9 x 24.9 mm), centre measured from the PCB end without USB
+WIN_W, WIN_L, WIN_CX = 16.0, 27.0, 19.5  # WIN_CX estimated from a photo
 WIN_CHAMFER = 1.0
-# Buttons GPIO0 / GPIO35, measured from the USB edge and from each long edge
-BTN_FROM_USB, BTN_FROM_SIDE = 4.5, 4.0
-BTN_H = 1.5         # top of the push button above the PCB top
-# USB-C opening in the end wall
-USB_W, USB_H, USB_DZ = 10.0, 5.0, 0.0   # USB_DZ: offset of the centre from the PCB mid-plane
+# Buttons GPIO0 / GPIO35, measured from the tip of the USB-C socket and from each long edge
+BTN_FROM_USB, BTN_FROM_SIDE = 6.2, 4.0  # BTN_FROM_USB estimated from a photo
+BTN_H = 1.8         # top of the push button above the PCB top - estimated from a photo
+# USB-C socket: mid-mount, sits in a notch of the board and reaches down to the PCB bottom
+USB_TOP = 2.0       # top of the socket above the PCB top - estimated from a photo
+USB_OUT = 4.0       # how far the socket sticks out beyond the board edge - estimated
+USB_LEN = 7.4       # how far the socket reaches into the board from the board edge - estimated
+# USB-C opening in the end wall, centred on the socket; open towards the lid if it reaches the rim
+USB_W, USB_H = 12.0, 6.0
 # Battery 1100 mAh LiPo (measured); wider than the board, shorter than it
 BAT_L, BAT_W, BAT_T = 47.0, 29.0, 8.0
 GAP = 1.0           # foam pad between battery and the parts on the board's back
@@ -76,26 +81,31 @@ def cyl_z(x, y, z0, z1, r):
 
 
 # ---- derived geometry ----
-IN_L = CABLE_BAY + max(PCB_L, BAT_L) + 2 * CLR
+IN_L = CABLE_BAY + max(PCB_L + USB_OUT, BAT_L) + 2 * CLR
 IN_W = max(PCB_W, BAT_W) + 2 * CLR
 OUT_L, OUT_W = IN_L + 2 * WALL, IN_W + 2 * WALL
 Z_PCB_BOT = FLOOR + BAT_T + GAP + BACK_H
 Z_PCB_TOP = Z_PCB_BOT + PCB_T
 Z_RIM = Z_PCB_TOP + FRONT_H + 0.1          # lid sits on the rim just above the glass
-PCB_X0 = WALL + IN_L - CLR - PCB_L         # PCB end without USB (board sits against the USB wall)
+PCB_X0 = WALL + IN_L - CLR - USB_OUT - PCB_L  # PCB end without USB (socket tip at the USB wall)
 PCB_Y0 = WALL + (IN_W - PCB_W) / 2         # board centred across the (wider) cavity
 PRESS = 1.0                                # how far the lid rim overlaps the PCB edge
 SNAP_Z = Z_PCB_TOP - 0.3
 SNAP_LEN = 24.0
-BTN_X = PCB_X0 + PCB_L - BTN_FROM_USB
+BTN_X = PCB_X0 + PCB_L + USB_OUT - BTN_FROM_USB
+# Near the USB end the socket and the buttons stand up to the display height: the lid
+# keeps clear of the board there and may cut up to 0.6 mm into its plate.
+END_ZONE = USB_LEN + 0.5                   # measured from the board edge on the USB side
+END_CLEAR = Z_PCB_TOP + max(USB_TOP, BTN_H) + 0.3
+assert END_CLEAR <= Z_RIM + 0.6, "socket/buttons higher than the lid allows - check USB_TOP, BTN_H, FRONT_H"
 BTN_YS = (PCB_Y0 + BTN_FROM_SIDE, PCB_Y0 + PCB_W - BTN_FROM_SIDE)
 
 
 def shell():
     s = rounded(0, 0, OUT_L, OUT_W, R_OUT, 0, Z_RIM)
     s -= rounded(WALL, WALL, WALL + IN_L, WALL + IN_W, 0.6, FLOOR, Z_RIM + 1)
-    # USB-C opening
-    zc = (Z_PCB_BOT + Z_PCB_TOP) / 2 + USB_DZ
+    # USB-C opening, centred on the socket (PCB bottom up to USB_TOP)
+    zc = (Z_PCB_BOT + Z_PCB_TOP + USB_TOP) / 2
     yc = OUT_W / 2
     s -= box(OUT_L - WALL - 1, yc - USB_W / 2, zc - USB_H / 2, OUT_L + 1, yc + USB_W / 2, zc + USB_H / 2)
     # snap grooves on both long inner walls
@@ -134,6 +144,8 @@ def lid():
     bumps = cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y0 + 0.15, SNAP_Z, 0.45) + \
         cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y1 - 0.15, SNAP_Z, 0.45)
     part = plate + skirt + bumps
+    # clearance above USB-C socket and buttons
+    part -= box(px1 - END_ZONE, sk_y0 - 1, skirt_bot - 1, OUT_L + 1, sk_y1 + 1, END_CLEAR)
     # display window with chamfer on the top face
     wx0 = PCB_X0 + WIN_CX - WIN_L / 2
     wy0 = PCB_Y0 + PCB_W / 2 - WIN_W / 2
@@ -153,8 +165,9 @@ def lid():
         u -= box(tx0 - 1, ty0, z0 - 2, tx1, ty1, z0 + LID_T + 2)
         part -= u
         nub_bot = Z_PCB_TOP + BTN_H + 0.2
-        if nub_bot < z0:
-            part += cyl_z(BTN_X, by, nub_bot, z0 + 0.01, 1.2)
+        underside = END_CLEAR if BTN_X > px1 - END_ZONE else z0
+        if nub_bot < underside:
+            part += cyl_z(BTN_X, by, nub_bot, underside + 0.01, 1.2)
         # small dimple on top so the buttons can be found by touch
         part -= Manifold.sphere(1.6, SEG).translate((BTN_X, by, z0 + LID_T + 1.2))
     return part

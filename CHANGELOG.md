@@ -11,6 +11,14 @@
 - Linke Taste lang (0,8 s) schaltet die Stufe des aktiven Modus weiter; ein Balken in der Fußzeile zeigt sie 1,5 s lang an.
 - Nachtmodus und beide Stufen werden gespeichert und überleben einen Neustart.
 
+### Gehäuse
+- Nach dem ersten Probedruck: Der Deckel lag auf der USB-C-Buchse auf und konnte nicht plan auf dem Display liegen. Die Buchse steckt in der Platine und reicht bis etwa auf Displayhöhe, ebenso die Taster.
+- Deckel: Auf den letzten ca. 8 mm zur USB-Seite drückt er nicht mehr auf die Platine und ist innen bis 0,4 mm ausgespart.
+- Displayfenster 16 × 27 mm statt 15 × 26, Mitte 1,5 mm weiter zum TTGO-Ende (`WIN_CX` 19,5 mm).
+- Tasten 1,7 mm weiter von der USB-Spitze entfernt (`BTN_FROM_USB` 6,2 mm, jetzt von der Buchsenspitze gemessen).
+- USB-Öffnung 12 × 6 mm, mittig auf der Buchse statt auf der Platinenmitte; nach oben bis zum Deckel offen.
+- Neue Parameter `USB_TOP`, `USB_OUT`, `USB_LEN`; `PCB_L` ist jetzt die Platine ohne Buchse. Die neuen Werte sind aus Fotos geschätzt und müssen noch nachgemessen werden.
+
 ### Bedienung
 - Kurze Tastendrücke wirken jetzt beim Loslassen, damit sich Doppel- und Langdruck davon unterscheiden lassen.
 - Bei ausgeschaltetem Display weckt jede Geste nur das Display.
