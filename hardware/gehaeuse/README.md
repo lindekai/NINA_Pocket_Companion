@@ -21,6 +21,7 @@ Zweiteiliges Gehäuse für das LilyGO T-Display (52 × 26 × 6 mm) mit einem 110
 
 - Der Akku ist breiter als die Platine. Das Unterteil richtet sich nach dem Akku; **Führungsleisten am Deckel** halten die Platine seitlich mittig (±0,3 mm Spiel) und drücken sie am Rand nach unten.
 - Die **USB-C-Buchse** steckt in einer Aussparung der Platine: Sie reicht unten bis zur Platinenunterseite, oben 1,2 mm über die Platinenoberseite und steht 2 mm über die Platinenkante hinaus. Die Taster sind mit ca. 1,8 mm noch etwas höher. Auf den letzten `USB_LEN` + 0,5 mm zur USB-Seite drückt der Deckel deshalb **nicht** auf die Platine und ist innen bis zu 0,6 mm ausgespart; gehalten wird die Platine dort von der Buchse in der Wandöffnung.
+- Auf der Unterseite steht der Projektname **N.I.N.A. Pocket Companion**, 0,5 mm tief eingraviert und so gespiegelt, dass er nach dem Umdrehen um die Längsachse lesbar ist. Text, Größe und Tiefe stehen in `LABEL`, `LABEL_SIZE` und `LABEL_DEPTH`. Die Schrift kommt aus `matplotlib`; ohne das Paket entsteht das Gehäuse ohne Schriftzug.
 - Die **Tasten** sind federnde Zungen im Deckel mit einem Stößel auf der Unterseite. Kleine Mulden auf der Oberseite machen sie ertastbar.
 - Der Deckel **rastet** über zwei Nasen in eine Nut an den Längsseiten ein.
 - Der Akku ist 5 mm kürzer als die Platine. Dieser **Freiraum** nimmt das Akkukabel auf, das zum Stecker auf der Rückseite der Platine hochgeführt wird.
@@ -70,7 +71,7 @@ Ist die Buchse oder sind die Taster höher, als der Deckel aufnehmen kann, brich
 Danach neu erzeugen:
 
 ```bash
-pip install manifold3d numpy
+pip install manifold3d numpy matplotlib
 python3 hardware/gehaeuse/gehaeuse.py
 ```
 
@@ -78,7 +79,7 @@ Für sehr neue Python-Versionen gibt es oft noch kein fertiges `manifold3d`-Pake
 
 ```bash
 /usr/bin/python3 -m venv .venv-gehaeuse
-.venv-gehaeuse/bin/pip install --only-binary=:all: manifold3d numpy
+.venv-gehaeuse/bin/pip install --only-binary=:all: manifold3d numpy matplotlib
 .venv-gehaeuse/bin/python hardware/gehaeuse/gehaeuse.py
 ```
 

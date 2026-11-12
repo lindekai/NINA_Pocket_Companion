@@ -11,7 +11,7 @@ Two parts:
 All dimensions in mm. Measure your board and battery and adjust the
 values in the PARAMETERS block, then run:
 
-  pip install manifold3d numpy
+  pip install manifold3d numpy matplotlib
   python3 hardware/gehaeuse/gehaeuse.py
 
 Coordinates: x along the board (0 = end without USB, + towards USB-C),
@@ -23,7 +23,7 @@ import struct
 from pathlib import Path
 
 import numpy as np
-from manifold3d import CrossSection, JoinType, Manifold
+from manifold3d import CrossSection, FillRule, JoinType, Manifold
 
 # ------------------------------ PARAMETERS ------------------------------
 # T-Display board: measured 52 x 26 x 6 mm overall (52 incl. the USB-C socket,
@@ -56,6 +56,12 @@ SKIRT_T = 1.2
 # Optional cut-out for a slide switch in the battery lead (long side wall, far end)
 SWITCH = False
 SWITCH_W, SWITCH_H, SWITCH_X = 9.0, 4.0, 10.0
+# Project name engraved into the underside (font via matplotlib; skipped if it is missing)
+LABEL = ("N.I.N.A.", "Pocket Companion")
+LABEL_SIZE = (8.0, 5.0)  # font size per line
+LABEL_MAX_W = 44.0       # lines wider than this are scaled down
+LABEL_GAP = 2.5          # space between the lines
+LABEL_DEPTH = 0.5        # of the 1.2 mm floor
 # ------------------------------------------------------------------------
 
 OUT = Path(__file__).resolve().parent
@@ -115,7 +121,39 @@ def shell():
     if SWITCH:
         zc = FLOOR + BAT_T / 2 + 2
         s -= box(SWITCH_X, -1, zc - SWITCH_H / 2, SWITCH_X + SWITCH_W, WALL + 1, zc + SWITCH_H / 2)
+    text = label()
+    if text is not None:
+        s -= Manifold.extrude(text, LABEL_DEPTH + 1).translate((0, 0, -1))
     return s
+
+
+def label():
+    """LABEL as a cross-section centred on the floor, mirrored so that it reads
+    correctly when the case is turned over about its long axis."""
+    try:
+        from matplotlib.font_manager import FontProperties
+        from matplotlib.textpath import TextPath
+    except ImportError:
+        print("matplotlib not installed - building the case without the label")
+        return None
+    prop = FontProperties(family="DejaVu Sans", weight="bold")
+    lines = []
+    for text, size in zip(LABEL, LABEL_SIZE):
+        path = TextPath((0, 0), text, size=size, prop=prop)
+        cs = CrossSection([np.asarray(p, float) for p in path.to_polygons()], FillRule.EvenOdd)
+        x0, y0, x1, y1 = cs.bounds()
+        if x1 - x0 > LABEL_MAX_W:
+            cs = cs.scale((LABEL_MAX_W / (x1 - x0),) * 2)
+            x0, y0, x1, y1 = cs.bounds()
+        lines.append(cs.translate((-(x0 + x1) / 2, -y1)))  # centred, top edge at y = 0
+    text, y = CrossSection(), 0.0
+    for cs in lines:
+        x0, y0, x1, y1 = cs.bounds()
+        text += cs.translate((0, y))
+        y += y0 - LABEL_GAP
+    x0, y0, x1, y1 = text.bounds()
+    text = text.translate((0, -(y0 + y1) / 2)).scale((1, -1))
+    return text.translate((OUT_L / 2, OUT_W / 2))
 
 
 def lid():
