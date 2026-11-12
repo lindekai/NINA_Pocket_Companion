@@ -40,7 +40,7 @@ BTN_H = 1.8         # top of the push button above the PCB top - estimated from 
 # USB-C socket: mid-mount, sits in a notch of the board and reaches down to the PCB bottom
 USB_TOP = 1.2       # top of the socket above the PCB top - measured
 USB_OUT = 5.0       # how far the socket sticks out beyond the board edge - measured
-USB_LEN = 8.0       # how far the socket reaches into the board from the board edge - measured
+USB_LEN = 7.0       # how far the socket reaches into the board from the board edge - measured
 # USB-C opening in the end wall, centred on the socket; open towards the lid if it reaches the rim
 USB_W, USB_H = 12.0, 6.0
 # Battery 1100 mAh LiPo (measured); wider than the board, shorter than it

@@ -44,7 +44,7 @@ Draufsicht auf das USB-Ende (Display oben, schematisch, nicht maßstäblich). `[
                             ┊     ┊         ┊         ┊
                                   ├───────────────────┤ BTN_FROM_USB 10,0
                                             ├─────────┤ USB_OUT 5,0
-                            ├───────────────┤ USB_LEN 8,0
+                            ├───────────────┤ USB_LEN 7,0
 ```
 
 - **Buchsenspitze** ist die Stirnfläche der USB-C-Buchse, in die das Kabel gesteckt wird.
@@ -55,7 +55,7 @@ Draufsicht auf das USB-Ende (Display oben, schematisch, nicht maßstäblich). `[
 |---|---|---|---|
 | `PCB_L` | 47,0 mm | 52 − `USB_OUT` | Platinenlänge **ohne** die überstehende Buchse |
 | `USB_OUT` | 5,0 mm | Messung | wie weit die Buchse über die Platinenkante hinausragt |
-| `USB_LEN` | 8,0 mm | Messung | wie weit die Buchse von der Platinenkante in die Platine hineinreicht |
+| `USB_LEN` | 7,0 mm | Messung | wie weit die Buchse von der Platinenkante in die Platine hineinreicht |
 | `USB_TOP` | 1,2 mm | Messung | Oberkante der Buchse über der Platinenoberseite |
 | `FRONT_H` | 1,8 mm | Annahme | Displayoberfläche über der Platinenoberseite |
 | `BACK_H` | 2,6 mm | Annahme | höchstes Bauteil auf der Rückseite (ergibt mit 1,6 mm Platine und `FRONT_H` die 6 mm) |
