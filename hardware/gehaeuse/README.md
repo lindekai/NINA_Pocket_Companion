@@ -24,12 +24,12 @@ Zweiteiliges Gehäuse für das LilyGO T-Display (52 × 26 × 6 mm) mit einem 110
 - Auf der Unterseite steht der Projektname **N.I.N.A. Pocket Companion** mit „© 2026 by Kai Linde“, 0,5 mm tief eingraviert und so gespiegelt, dass er nach dem Umdrehen um die Längsachse lesbar ist. Text, Größe und Tiefe stehen in `LABEL`, `LABEL_SIZE` und `LABEL_DEPTH`. Die Schrift kommt aus `matplotlib`; ohne das Paket entsteht das Gehäuse ohne Schriftzug.
 - Die **Tasten** sind federnde Zungen im Deckel mit einem Stößel auf der Unterseite. Kleine Mulden auf der Oberseite machen sie ertastbar.
 - Der Deckel **rastet** über zwei Nasen in eine Nut an den Längsseiten ein.
-- Der Akku ist 5 mm kürzer als die Platine. Dieser **Freiraum** nimmt das Akkukabel auf, das zum Stecker auf der Rückseite der Platine hochgeführt wird.
+- Der Akku ist 5 mm kürzer als die Platine mit Buchse. Dieser **Freiraum** nimmt das Akkukabel auf, das zum Stecker auf der Rückseite der Platine hochgeführt wird.
 - Ein 1 mm dickes **Schaumstoff-Pad** zwischen Akku und Platinenrückseite federt den Stapel ab und schützt den Akku.
 
 ## Maße
 
-Gemessen sind Platine (52 × 26 × 6 mm, die 52 mm **mit** USB-Buchse) und Akku (47 × 29 × 8 mm). Die übrigen Werte sind **angenommen oder aus Fotos geschätzt** und sollten vor dem Druck mit dem Messschieber geprüft werden; sie stehen oben in [`gehaeuse.py`](gehaeuse.py):
+Gemessen sind Platine (52 × 26 × 6 mm, die 52 mm **mit** USB-Buchse), Akku (47 × 29 × 8 mm), die USB-C-Buchse und die Lage der Taster. `FRONT_H`, `BACK_H`, `WIN_CX` und `BTN_H` sind noch **angenommen oder aus Fotos geschätzt** und sollten vor dem Druck mit dem Messschieber geprüft werden. Alle Werte stehen oben in [`gehaeuse.py`](gehaeuse.py).
 
 Draufsicht auf das USB-Ende (Display oben, schematisch, nicht maßstäblich). `[+]` ist die **Mitte** eines Tasters, gemessen wird parallel zur Längskante:
 

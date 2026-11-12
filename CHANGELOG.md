@@ -5,12 +5,13 @@
 ### Gehäuse
 - USB-C-Buchse nachgemessen: `USB_TOP` 1,2 mm (vorher geschätzt 2,0), `USB_OUT` 2,0 mm (4,0), `USB_LEN` 7,0 mm (7,4). `PCB_L` ist damit 50,0 mm, die Gesamtlänge bleibt 52 mm.
 - Taster nachgemessen: `BTN_FROM_USB` 7,0 mm (vorher geschätzt 6,2), die Tastermitten liegen 5 mm innerhalb der Platinenkante. Die Tasten im Deckel rücken damit 0,8 mm weiter zur Displayseite.
+- Die Freistellung im Deckel richtet sich jetzt nach den Tastern (1,8 mm), weil die Buchse niedriger ist als angenommen. Die USB-Öffnung sitzt 0,4 mm tiefer.
 - Deckel: Am USB-Ende blieb von den seitlichen Führungsleisten ein 0,35 mm dünner, frei hängender Streifen stehen, der sich nicht drucken ließ. Die Freistellung reicht jetzt bis unter die Leisten.
 - Unterteil: Projektname und „© 2026 by Kai Linde“ auf der Unterseite eingraviert (0,5 mm tief, `LABEL`). Für die Schrift braucht `gehaeuse.py` jetzt zusätzlich `matplotlib`.
 
 ### Dokumentation
 - Mockups: Info-Seite auf v0.3 aktualisiert, neue Bilder für den Nachtmodus (Session, Höhenverlauf) und den Helligkeitsbalken. `render_mockups.py` bildet dazu die Rot-Umrechnung und den Balken der Firmware nach.
-- Die Freistellung im Deckel richtet sich jetzt nach den Tastern (1,8 mm), weil die Buchse niedriger ist als angenommen. Die USB-Öffnung sitzt 0,4 mm tiefer.
+- Gehäuse-README: Draufsicht auf das USB-Ende, die zeigt, wie `BTN_FROM_USB`, `USB_OUT` und `USB_LEN` gemessen werden.
 
 ## v0.3 – November 2026
 

@@ -253,7 +253,8 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 - [ ] Asynchroner API-Client
 - [ ] Fotos vom Gerät im Einsatz
 - [x] Gehäuse zum 3D-Drucken ([`hardware/gehaeuse`](hardware/gehaeuse))
-- [ ] Gehäuse an echter Hardware nachmessen und Probe drucken
+- [x] Gehäuse an der USB-Seite nachmessen (Buchse, Taster)
+- [ ] Gehäuse Probe drucken und restliche Maße prüfen (`FRONT_H`, `BACK_H`, `WIN_CX`, `BTN_H`)
 
 ## 🖼️ Mockups neu erzeugen
 
