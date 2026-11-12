@@ -235,7 +235,7 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 - Statusabfragen blockieren kurz (Verbindungs-Timeout 1,5 s). Ist N.I.N.A. nicht erreichbar, werden die übrigen Abfragen der Runde übersprungen.
 - Keine Online-Bilder oder Wetterdaten.
 - Der Akku-Ladestand ist eine Schätzung aus der Spannung, keine Coulomb-Zählung. Ob geladen wird oder nur USB steckt, lässt sich mit der Board-Hardware nicht unterscheiden.
-- Läuft auf einem LilyGO T-Display (`ESP32 Dev Module`, ESP32-Core 3.3.12). Auf dem Gerät geprüft: Anzeige, Verbindung zu N.I.N.A., Akkuanzeige mit und ohne USB sowie Display-Timeout. Ein Live-Betrieb über eine ganze Nacht steht noch aus. Nachtmodus und Helligkeit (v0.3) sind noch nicht auf dem Gerät getestet.
+- Läuft auf einem LilyGO T-Display (`ESP32 Dev Module`, ESP32-Core 3.3.12). Auf dem Gerät geprüft: Anzeige, Verbindung zu N.I.N.A., Akkuanzeige mit und ohne USB sowie Display-Timeout. Ein Live-Betrieb über eine ganze Nacht steht noch aus. Nachtmodus, Helligkeitsstufen und Tastengesten (v0.3) sind ebenfalls auf dem Gerät geprüft.
 
 ## 🗺️ Ideen für später
 

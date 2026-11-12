@@ -27,8 +27,8 @@
 - Seite **Info** zeigt Helligkeitsstufen und Nachtmodus.
 - Tastenlogik, Rot-Umrechnung und Stufen liegen in `companion_logic.h` und haben Host-Tests (`tools/test_companion_logic.cpp`).
 
-### Noch nicht getestet
-- Noch nicht auf dem Gerät geprüft.
+### Getestet
+- Auf dem Gerät geprüft: Tag- und Nachtmodus, alle Helligkeitsstufen, Speichern über einen Neustart, Aufwecken per Geste nach dem Display-Timeout sowie kurze Tastendrücke beim Loslassen ohne Fehlauslösung bei beiden Tasten.
 
 ## v0.2 – November 2026
 
