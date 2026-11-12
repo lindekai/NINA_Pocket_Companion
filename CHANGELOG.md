@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.2 – November 2026
+
+### Akku
+- Akkuanzeige: Spannung über den Spannungsteiler des T-Display (GPIO34, freigeschaltet über GPIO14), geglättet.
+- Akkusymbol mit Füllstand in der Kopfzeile, Spannung und geschätzter Ladestand auf der Seite **Info**; `USB`, wenn USB angesteckt ist.
+- Abschaltbar mit `BATTERY_MONITOR = false`.
+
+### Display-Timeout
+- Display geht nach `DISPLAY_TIMEOUT_MIN` Minuten ohne Tastendruck aus (Standard 5, `0` = immer an); Hintergrundbeleuchtung aus, Displaycontroller im Schlafmodus.
+- Der erste Tastendruck weckt nur das Display.
+- Bei ausgeschaltetem Display wird seltener abgefragt (`POLL_MS_DISPLAY_OFF`, Standard 30 s).
+- `WAKE_ON_EVENTS`: Display schaltet sich bei Sequenzende (→ Session), Verbindungsverlust (→ Systemstatus) und Akku ≤ 10 % (→ Info) selbst ein.
+
+### Sonstiges
+- Seite **Info** neu aufgeteilt (Akku, Display-Timeout).
+- Seitentitel auf 8 Zeichen begrenzt, damit das Akkusymbol Platz hat.
+
+### Getestet
+- Auf dem T-Display bestätigt: plausible Akkuspannung ohne USB, Anzeige `USB` bei angestecktem Kabel, Display-Timeout und Aufwecken per Tastendruck ohne Weiterblättern.
+
 ## v0.1 – November 2026
 
 ### Anzeige

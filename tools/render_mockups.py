@@ -68,6 +68,12 @@ class Screen:
             for xx in range(x, x + w):
                 self.pixel(xx, yy, c)
 
+    def draw_rect(self, x, y, w, h, c):
+        self.hline(x, y, w, c)
+        self.hline(x, y + h - 1, w, c)
+        self.vline(x, y, h, c)
+        self.vline(x + w - 1, y, h, c)
+
     def fill_screen(self, c):
         self.fill_rect(0, 0, W, H, c)
 
@@ -155,7 +161,7 @@ class Screen:
 D = dict(api=True, camera=True, mount=True, guider=True, wheel=True, focuser=True,
          running=True, parked=False, temp=-9.8, target_temp=-10.0, rms=0.52,
          alt=62.3, az=314.8, ra=23.345, dec=61.216, filter="Ha 7nm",
-         target="NGC 7635", step="Belichtung ausfuehren", camera_name="ATR2600C", cooler=48,
+         target="NGC 7635", step="Belichtung ausfuehren", camera_name="ATR2600C", cooler=48, bat_mv=3920, bat_pct=69,
          completed=42, total=120, exposure=300)
 SITE_LAT, SITE_LON = 52.52, 13.40
 WIFI_IP, NINA_IP = "192.168.1.42", "192.168.1.20"
@@ -184,9 +190,17 @@ class Pages:
     def header(self, title):
         self.s.fill_screen(BG)
         self.s.fill_rect(0, 0, W, 23, PANEL)
-        self.text(5, 4, cut(title, 9), CYAN, 2, PANEL)
+        self.text(5, 4, cut(title, 8), CYAN, 2, PANEL)
+        self.battery_icon(103, 8)
         self.s.fill_circle(126, 11, 3, GREEN)
         self.sep(24)
+
+    def battery_icon(self, x, y):
+        pct = D["bat_pct"]
+        c = GREEN if pct > 40 else (YELLOW if pct > 15 else RED)
+        self.s.draw_rect(x, y, 14, 8, WHITE)
+        self.s.fill_rect(x + 14, y + 2, 2, 4, WHITE)
+        self.s.fill_rect(x + 2, y + 2, max(1, (pct * 10 + 50) // 100), 4, c)
 
     def footer(self, left="WEITER", right="MENU"):
         self.sep(216)
@@ -318,15 +332,17 @@ class Pages:
 
     def about(self):
         self.header("INFO")
-        self.text(6, 30, "N.I.N.A. POCKET", CYAN)
-        self.text(6, 43, "Companion v0.1", WHITE)
-        self.text(6, 64, "READ-ONLY", GREEN, 2)
-        self.text(6, 99, "WiFi:", GRAY)
-        self.text(6, 112, WIFI_IP)
-        self.text(6, 137, "N.I.N.A. PC (auto):", GRAY)
-        self.text(6, 150, NINA_IP)
-        self.text(6, 171, "Port: 1888")
-        self.text(6, 190, "LIVE", GREEN, 2)
+        self.text(6, 30, "N.I.N.A. POCKET v0.2", CYAN)
+        self.text(6, 43, "LIVE", GREEN)
+        self.text(42, 43, "READ-ONLY", GREEN)
+        self.kv(58, "Akku", f"{D['bat_mv'] / 1000:.2f}V {D['bat_pct']}%", GREEN)
+        self.text(6, 95, "WiFi:", GRAY)
+        self.text(6, 107, WIFI_IP)
+        self.text(6, 125, "N.I.N.A. PC (auto):", GRAY)
+        self.text(6, 137, NINA_IP)
+        self.text(6, 149, "Port: 1888")
+        self.text(6, 167, "Display aus:", GRAY)
+        self.text(6, 179, "nach 5 min")
         self.footer()
 
 

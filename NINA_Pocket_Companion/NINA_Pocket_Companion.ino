@@ -1,5 +1,5 @@
 /*
- N.I.N.A. Pocket Companion 0.1 - READ ONLY
+ N.I.N.A. Pocket Companion 0.2 - READ ONLY
  Copyright (c) 2026 Kai Linde - MIT License, see LICENSE.
  Target: classic LilyGO TTGO T-Display ESP32, portrait 135x240 ST7789.
  Arduino IDE / Adafruit ST7735 and ST7789 Library / Adafruit GFX / ArduinoJson 7.
@@ -44,6 +44,12 @@ const double SITE_LAT_DEG = SECRET_SITE_LAT;
 const double SITE_LON_DEG = SECRET_SITE_LON;
 const bool DEMO_MODE = false;   // Set true to test screens without N.I.N.A.
 const uint32_t POLL_MS = 8000;
+// Display: switch off after this many minutes without a key press (0 = always on).
+// The first key press only wakes the display.
+const uint8_t DISPLAY_TIMEOUT_MIN = 5;
+const uint32_t POLL_MS_DISPLAY_OFF = 30000; // slower polling while the display is off
+const bool WAKE_ON_EVENTS = true;           // wake on sequence end, connection loss, low battery
+const bool BATTERY_MONITOR = true;          // LiPo voltage via the board's divider on GPIO34
 // ----------------------------------------------------
 
 #define TFT_CS 5
@@ -54,6 +60,8 @@ const uint32_t POLL_MS = 8000;
 #define TFT_BL 4
 #define BTN_NEXT 0   // lower left (BOOT), avoid pressing during reset
 #define BTN_PAGE 35  // lower right, pull-up located on board
+#define ADC_EN 14    // enables the battery voltage divider
+#define ADC_BAT 34   // battery voltage / 2
 #define W 135
 #define H 240
 
@@ -69,6 +77,15 @@ Page page = HOME;
 uint32_t lastPoll=0, lastDraw=0, lastWiFiTry=0;
 uint8_t navCursor=0;
 bool dirty=true;
+bool displayOn=true;
+uint32_t lastActivity=0;
+uint8_t lostPolls=0;
+// Battery: smoothed voltage in mV, -1 = no reading yet
+float batMv=-1;
+int batPct=-1;
+bool batUsb=false, batLowWarned=false;
+// Declared here: the Arduino IDE generates no prototypes for functions with default arguments.
+void wakeDisplay(int target=-1);
 
 struct Telemetry {
  bool api=false, camera=false, mount=false, guider=false, wheel=false, focuser=false;
@@ -386,8 +403,13 @@ void pollNina() {
  if(wifi) fetchAll();
  if(data.api){
   data.message="N.I.N.A. verbunden";
-  failedPolls=0;
+  failedPolls=0;lostPolls=0;
+  // sequence just ended (or was stopped)
+  if(WAKE_ON_EVENTS&&prev.running&&data.hasRunning&&!data.running)wakeDisplay(SESSION);
  }else{
+  // connection lost for two polls in a row
+  if(prev.api||prev.stale){if(lostPolls<255)lostPolls++;}
+  if(WAKE_ON_EVENTS&&lostPolls==2)wakeDisplay(SYSTEM);
   // Keep the last known values instead of blanking the screen; footer marks them as ALT.
   if(prev.api||prev.stale){data=prev;data.stale=true;}
   data.api=false;
@@ -413,7 +435,8 @@ const char DEG=(char)247; // degree sign in the classic GFX font
 void header(String title) {
  gfx->fillScreen(BG);
  gfx->fillRect(0,0,W,23,PANEL);
- textAt(5,4,cut(title,9),CYAN,2,PANEL);
+ textAt(5,4,cut(title,8),CYAN,2,PANEL);
+ drawBatteryIcon(103,8);
  gfx->fillCircle(126,11,3,WiFi.status()==WL_CONNECTED?GREEN:RED);
  line(24);
 }
@@ -575,17 +598,76 @@ void drawAltitude(){
 }
 void drawAbout(){
  header("INFO");
- textAt(6,30,"N.I.N.A. POCKET",CYAN);
- textAt(6,43,"Companion v0.1",WHITE);
- textAt(6,64,"READ-ONLY",GREEN,2);
- textAt(6,99,"WiFi:",GRAY);
- textAt(6,112,WiFi.status()==WL_CONNECTED?WiFi.localIP().toString():"offline");
- textAt(6,137,autoHost()?"N.I.N.A. PC (auto):":"N.I.N.A. PC:",GRAY);
- if(scanning)textAt(6,150,"Suche... "+String(scanPercent())+"%",YELLOW);
- else textAt(6,150,ninaHost.length()?ninaHost:"nicht gefunden",ninaHost.length()?WHITE:RED);
- textAt(6,171,"Port: "+String(NINA_PORT));
- textAt(6,190,DEMO_MODE?"DEMO":"LIVE",DEMO_MODE?YELLOW:GREEN,2);
+ textAt(6,30,"N.I.N.A. POCKET v0.2",CYAN);
+ textAt(6,43,DEMO_MODE?"DEMO":"LIVE",DEMO_MODE?YELLOW:GREEN);
+ textAt(42,43,"READ-ONLY",GREEN);
+ kv(58,"Akku",batteryText(),BATTERY_MONITOR&&batPct>=0?batteryColor():GRAY);
+ textAt(6,95,"WiFi:",GRAY);
+ textAt(6,107,WiFi.status()==WL_CONNECTED?WiFi.localIP().toString():"offline");
+ textAt(6,125,autoHost()?"N.I.N.A. PC (auto):":"N.I.N.A. PC:",GRAY);
+ if(scanning)textAt(6,137,"Suche... "+String(scanPercent())+"%",YELLOW);
+ else textAt(6,137,ninaHost.length()?ninaHost:"nicht gefunden",ninaHost.length()?WHITE:RED);
+ textAt(6,149,"Port: "+String(NINA_PORT));
+ textAt(6,167,"Display aus:",GRAY);
+ textAt(6,179,DISPLAY_TIMEOUT_MIN?"nach "+String(DISPLAY_TIMEOUT_MIN)+" min":"nie");
  footer();
+}
+// ---------- Battery ----------
+// Typical LiPo open-circuit curve (mV -> %), interpolated linearly.
+const uint16_t BAT_CURVE[][2]={{4200,100},{4100,90},{4000,79},{3900,66},{3800,52},{3750,42},
+ {3700,32},{3650,22},{3600,13},{3500,6},{3400,2},{3300,0}};
+int batteryPercent(float mv){
+ const int n=sizeof(BAT_CURVE)/sizeof(BAT_CURVE[0]);
+ if(mv>=BAT_CURVE[0][0])return 100;
+ for(int i=1;i<n;i++) if(mv>=BAT_CURVE[i][0]){
+  float hi=BAT_CURVE[i-1][0],lo=BAT_CURVE[i][0];
+  return (int)round(BAT_CURVE[i][1]+(mv-lo)*(BAT_CURVE[i-1][1]-BAT_CURVE[i][1])/(hi-lo));
+ }
+ return 0;
+}
+void readBattery(){
+ if(!BATTERY_MONITOR)return;
+ uint32_t sum=0;
+ for(int i=0;i<8;i++)sum+=analogReadMilliVolts(ADC_BAT);
+ float mv=sum/8.0f*2.0f; // 100k/100k divider on the board
+ batMv=batMv<0?mv:batMv*0.8f+mv*0.2f;
+ bool usb=batMv>4350; // above a full cell: USB is connected (charging or no battery)
+ int pct=batteryPercent(batMv);
+ if(usb!=batUsb||pct!=batPct)dirty=true;
+ batUsb=usb;batPct=pct;
+ if(!batUsb&&batPct<=10&&!batLowWarned){batLowWarned=true;wakeDisplay(ABOUT);}
+ if(batUsb||batPct>=15)batLowWarned=false;
+}
+uint16_t batteryColor(){ return batUsb?CYAN:(batPct>40?GREEN:(batPct>15?YELLOW:RED)); }
+void drawBatteryIcon(int x,int y){
+ if(!BATTERY_MONITOR||batPct<0)return;
+ uint16_t c=batteryColor();
+ gfx->drawRect(x,y,14,8,WHITE);gfx->fillRect(x+14,y+2,2,4,WHITE);
+ int w=batUsb?10:max(1,(batPct*10+50)/100);
+ gfx->fillRect(x+2,y+2,w,4,c);
+}
+String batteryText(){
+ if(!BATTERY_MONITOR||batPct<0)return "--";
+ if(batUsb)return "USB";
+ return String(batMv/1000.0f,2)+"V "+String(batPct)+"%";
+}
+// ---------- Display power ----------
+void sleepDisplay(){
+ if(!displayOn)return;
+ digitalWrite(TFT_BL,LOW);
+ tft.enableSleep(true);
+ displayOn=false;
+}
+// Wakes the display. When it was off and an event caused the wake-up, jump to `target`.
+void wakeDisplay(int target){
+ lastActivity=millis();
+ if(displayOn)return;
+ if(target>=0)page=(Page)target;
+ tft.enableSleep(false);
+ delay(120); // ST7789 needs 120 ms after SLPOUT
+ displayOn=true;
+ render();
+ digitalWrite(TFT_BL,HIGH);
 }
 void render(){
  switch(page){
@@ -602,6 +684,8 @@ void processButton(uint8_t pin,bool &previous,uint32_t &changed,bool nextButton)
  if(pressed!=previous && millis()-changed>40){
   changed=millis();previous=pressed;
   if(pressed){
+   if(!displayOn){wakeDisplay();return;} // first press only wakes the display
+   lastActivity=millis();
    if(page==HOME){
     if(nextButton)navCursor=(navCursor+1)%8;
     else page=(Page)(navCursor+1);
@@ -618,6 +702,7 @@ void setup(){
  pinMode(TFT_BL,OUTPUT);digitalWrite(TFT_BL,HIGH);
  pinMode(BTN_NEXT,INPUT_PULLUP);
  pinMode(BTN_PAGE,INPUT); // GPIO35 has no internal pull-up
+ if(BATTERY_MONITOR){pinMode(ADC_EN,OUTPUT);digitalWrite(ADC_EN,HIGH);readBattery();}
  SPI.begin(TFT_SCLK,-1,TFT_MOSI,TFT_CS);
  tft.init(135,240);tft.setRotation(2);tft.invertDisplay(true); // portrait, USB-C at the bottom
  // Allocate before WiFi starts, while the heap is still unfragmented.
@@ -644,7 +729,7 @@ void setup(){
   }
  }
  if(canvas)gfx=canvas;
- pollNina();render();lastPoll=millis();
+ pollNina();render();lastPoll=millis();lastActivity=millis();
 }
 void loop(){
  static bool wasNext=false,wasPage=false;
@@ -659,7 +744,11 @@ void loop(){
  bool wifiNow=WiFi.status()==WL_CONNECTED;
  bool wifiUp=wifiNow&&!wifiWas;wifiWas=wifiNow;
  if(scanning&&wifiNow)scanStep();
- if(pollNow||wifiUp||millis()-lastPoll>=POLL_MS){pollNow=false;lastPoll=millis();pollNina();}
- if(dirty||(page==ALTITUDE&&millis()-lastDraw>30000))render();
+ uint32_t pollMs=displayOn?POLL_MS:POLL_MS_DISPLAY_OFF;
+ if(pollNow||wifiUp||millis()-lastPoll>=pollMs){pollNow=false;lastPoll=millis();pollNina();}
+ static uint32_t lastBat=0;
+ if(BATTERY_MONITOR&&millis()-lastBat>=2000){lastBat=millis();readBattery();}
+ if(displayOn&&DISPLAY_TIMEOUT_MIN&&millis()-lastActivity>=DISPLAY_TIMEOUT_MIN*60000UL)sleepDisplay();
+ if(displayOn&&(dirty||(page==ALTITUDE&&millis()-lastDraw>30000)))render();
  delay(15);
 }
