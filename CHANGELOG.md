@@ -1,5 +1,12 @@
 # Changelog
 
+## Unveröffentlicht
+
+### Gehäuse
+- USB-C-Buchse nachgemessen: `USB_TOP` 1,2 mm (vorher geschätzt 2,0), `USB_OUT` 5,0 mm (4,0), `USB_LEN` 8,0 mm (7,4). `PCB_L` ist damit 47,0 mm, die Gesamtlänge bleibt 52 mm.
+- Taster nachgemessen: `BTN_FROM_USB` 6,3 mm (vorher geschätzt 6,2).
+- Die Freistellung im Deckel richtet sich jetzt nach den Tastern (1,8 mm), weil die Buchse niedriger ist als angenommen. Die USB-Öffnung sitzt 0,4 mm tiefer.
+
 ## v0.3 – November 2026
 
 ### Nachtmodus
