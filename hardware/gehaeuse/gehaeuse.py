@@ -37,22 +37,33 @@ WIN_CHAMFER = 1.0
 # Buttons GPIO0 / GPIO35, measured from the tip of the USB-C socket and from each long edge
 BTN_FROM_USB, BTN_FROM_SIDE = 7.0, 4.0
 BTN_H = 1.8         # top of the push button above the PCB top - estimated from a photo
+# Flexure buttons in the lid: tongue hinged towards the display, pad underneath
+BTN_TONGUE_L, BTN_TONGUE_W = 14.0, 4.5  # longer = softer; the hinge must stay clear of the window
+BTN_TONGUE_TIP = 4.5  # how far the free end reaches past the button centre towards USB
+BTN_TONGUE_T = 1.0  # tongue thickness, thinned from the underside (lid: LID_T); thinner = softer
+BTN_PAD_R = 1.5     # pad under the tongue that presses the button
+BTN_GAP = 0.15      # air between pad and button top - less travel before the click
 # USB-C socket: mid-mount, sits in a notch of the board and reaches down to the PCB bottom
 USB_TOP = 1.2       # top of the socket above the PCB top - measured
 USB_OUT = 2.0       # how far the socket sticks out beyond the board edge - measured
 USB_LEN = 7.0       # how far the socket reaches into the board from the board edge - measured
 # USB-C opening in the end wall, centred on the socket; open towards the lid if it reaches the rim
 USB_W, USB_H = 12.0, 6.0
+USB_NOTCH_W = 10.0  # notch right through the lid over the socket (socket ~9 mm wide)
 # Battery 1100 mAh LiPo (measured); wider than the board, shorter than it
 BAT_L, BAT_W, BAT_T = 47.0, 29.0, 8.0
 GAP = 1.0           # foam pad between battery and the parts on the board's back
+GUIDE_DEPTH = 1.5   # lid guides beside the board reach this far below the PCB bottom
 CABLE_BAY = 0.0     # extra length for the battery cable (battery is shorter than the board)
+END_STOP = 1.5      # room for a stop of the lid at the board end opposite the USB socket
 # Case
 CLR = 0.3           # clearance board <-> wall
+FRAME_CLR = 0.15    # clearance board <-> guides and stops of the lid (snug, so the board cannot shift)
 WALL, FLOOR, LID_T = 1.6, 1.2, 1.4
 R_OUT = 3.0         # outer corner radius
 FIT = 0.15          # lid skirt clearance per side
 SKIRT_T = 1.2
+SNAP_DEPTH = 0.4    # how far the lid's snap beads reach into the grooves of the shell
 # Optional cut-out for a slide switch in the battery lead (long side wall, far end)
 SWITCH = False
 SWITCH_W, SWITCH_H, SWITCH_X = 9.0, 4.0, 10.0
@@ -87,7 +98,7 @@ def cyl_z(x, y, z0, z1, r):
 
 
 # ---- derived geometry ----
-IN_L = CABLE_BAY + max(PCB_L + USB_OUT, BAT_L) + 2 * CLR
+IN_L = CABLE_BAY + END_STOP + max(PCB_L + USB_OUT, BAT_L) + 2 * CLR
 IN_W = max(PCB_W, BAT_W) + 2 * CLR
 OUT_L, OUT_W = IN_L + 2 * WALL, IN_W + 2 * WALL
 Z_PCB_BOT = FLOOR + BAT_T + GAP + BACK_H
@@ -98,6 +109,7 @@ PCB_Y0 = WALL + (IN_W - PCB_W) / 2         # board centred across the (wider) ca
 PRESS = 1.0                                # how far the lid rim overlaps the PCB edge
 SNAP_Z = Z_PCB_TOP - 0.3
 SNAP_LEN = 24.0
+SNAP_R = FIT + SNAP_DEPTH                  # bead centred on the skirt face
 BTN_X = PCB_X0 + PCB_L + USB_OUT - BTN_FROM_USB
 # Near the USB end the socket and the buttons stand up to the display height: the lid
 # keeps clear of the board there and may cut up to 0.6 mm into its plate.
@@ -117,7 +129,7 @@ def shell():
     # snap grooves on both long inner walls
     xm = OUT_L / 2
     for y in (WALL, WALL + IN_W):
-        s -= cyl_x(xm - SNAP_LEN / 2 - 1, xm + SNAP_LEN / 2 + 1, y, SNAP_Z, 0.6)
+        s -= cyl_x(xm - SNAP_LEN / 2 - 1, xm + SNAP_LEN / 2 + 1, y, SNAP_Z, SNAP_R + 0.1)
     if SWITCH:
         zc = FLOOR + BAT_T / 2 + 2
         s -= box(SWITCH_X, -1, zc - SWITCH_H / 2, SWITCH_X + SWITCH_W, WALL + 1, zc + SWITCH_H / 2)
@@ -170,21 +182,26 @@ def lid():
     skirt = rounded(sk_x0, sk_y0, sk_x1, sk_y1, 0.5, skirt_bot, z0)
     skirt -= rounded(*inner, 0.3, skirt_bot - 1, z0 + 1)
     # guides beside the board where the cavity is wider/longer than the PCB
-    guide_bot = Z_PCB_BOT + 0.3
-    for g in (box(sk_x0, sk_y0, guide_bot, sk_x1, py0 - CLR, z0),
-              box(sk_x0, py1 + CLR, guide_bot, sk_x1, sk_y1, z0),
-              box(sk_x0, sk_y0, guide_bot, px0 - CLR, sk_y1, z0)):
+    guide_bot = Z_PCB_BOT - GUIDE_DEPTH
+    assert guide_bot > FLOOR + BAT_T + GAP + 0.3, "lid guides reach down to the battery - reduce GUIDE_DEPTH"
+    for g in (box(sk_x0, sk_y0, guide_bot, sk_x1, py0 - FRAME_CLR, z0),
+              box(sk_x0, py1 + FRAME_CLR, guide_bot, sk_x1, sk_y1, z0),
+              box(sk_x0, sk_y0, guide_bot, px0 - FRAME_CLR, sk_y1, z0)):  # end stop, see END_STOP
         bb = g.bounding_box()
         if min(bb[3] - bb[0], bb[4] - bb[1]) >= 0.8:
             skirt += g
     # snap bumps
     xm = OUT_L / 2
-    bumps = cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y0 + 0.15, SNAP_Z, 0.45) + \
-        cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y1 - 0.15, SNAP_Z, 0.45)
+    bumps = cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y0, SNAP_Z, SNAP_R) + \
+        cyl_x(xm - SNAP_LEN / 2, xm + SNAP_LEN / 2, sk_y1, SNAP_Z, SNAP_R)
     part = plate + skirt + bumps
-    # clearance above USB-C socket and buttons; reaches below the guides so no thin
-    # sliver of them is left hanging in the air
-    part -= box(px1 - END_ZONE, sk_y0 - 1, guide_bot - 1, OUT_L + 1, sk_y1 + 1, END_CLEAR)
+    # clearance above the board at the USB end (buttons); the guides beside the board
+    # run on to the end wall so the lid stays held there
+    part -= box(px1 - END_ZONE, py0 - FRAME_CLR, guide_bot - 1, OUT_L + 1, py1 + FRAME_CLR, END_CLEAR)
+    # end stops beyond the board edge on the USB side, left and right of the socket
+    ny0, ny1 = PCB_Y0 + PCB_W / 2 - USB_NOTCH_W / 2, PCB_Y0 + PCB_W / 2 + USB_NOTCH_W / 2
+    for y0, y1 in ((sk_y0, ny0), (ny1, sk_y1)):
+        part += box(px1 + FRAME_CLR, y0, guide_bot, sk_x1, y1, z0 + 0.01)
     # display window with chamfer on the top face
     wx0 = PCB_X0 + WIN_CX - WIN_L / 2
     wy0 = PCB_Y0 + PCB_W / 2 - WIN_W / 2
@@ -195,20 +212,27 @@ def lid():
         box(wx0 - c, wy0 - c, z0 + LID_T, wx0 + WIN_L + c, wy0 + WIN_W + c, z0 + LID_T + 0.01),
     ])
     part -= win + chamfer
-    # flexure buttons: U-shaped slot, tongue hinged towards the display, nub underneath
-    tongue_w, tongue_l, slot = 5.0, 9.0, 0.8
+    # flexure buttons: U-shaped slot, thinned tongue hinged towards the display, pad underneath
+    slot = 0.8
+    tx0, tx1 = BTN_X + BTN_TONGUE_TIP - BTN_TONGUE_L, BTN_X + BTN_TONGUE_TIP
+    assert tx1 <= px1, "button tongue reaches past the board edge - reduce BTN_TONGUE_TIP"
+    assert tx0 >= wx0 + WIN_L + c + 1.0, "button tongue reaches into the display window - shorten BTN_TONGUE_L"
     for by in BTN_YS:
-        tx0, tx1 = BTN_X - tongue_l + 2.5, BTN_X + 2.5
-        ty0, ty1 = by - tongue_w / 2, by + tongue_w / 2
+        ty0, ty1 = by - BTN_TONGUE_W / 2, by + BTN_TONGUE_W / 2
         u = box(tx0, ty0 - slot, z0 - 1, tx1 + slot, ty1 + slot, z0 + LID_T + 1)
         u -= box(tx0 - 1, ty0, z0 - 2, tx1, ty1, z0 + LID_T + 2)
         part -= u
-        nub_bot = Z_PCB_TOP + BTN_H + 0.2
-        underside = END_CLEAR if BTN_X > px1 - END_ZONE else z0
-        if nub_bot < underside:
-            part += cyl_z(BTN_X, by, nub_bot, underside + 0.01, 1.2)
+        underside = z0 + LID_T - BTN_TONGUE_T
+        part -= box(tx0 - 0.01, ty0, z0 - 3, tx1 + 0.01, ty1, underside)
+        pad_bot = Z_PCB_TOP + BTN_H + BTN_GAP
+        if pad_bot < underside:
+            part += cyl_z(BTN_X, by, pad_bot, underside + 0.01, BTN_PAD_R)
         # small dimple on top so the buttons can be found by touch
         part -= Manifold.sphere(1.6, SEG).translate((BTN_X, by, z0 + LID_T + 1.2))
+    # notch right through the lid over the USB-C socket so it can never lift the lid
+    # off the display
+    assert ny0 - (BTN_YS[0] + BTN_TONGUE_W / 2 + slot) >= 0.8, "USB notch too close to the button tongues"
+    part -= box(px1 - END_ZONE, ny0, guide_bot - 1, OUT_L + 1, ny1, z0 + LID_T + 1)
     return part
 
 
