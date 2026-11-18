@@ -62,15 +62,10 @@
 
 ## 📸 Im Einsatz
 
-*Fotos vom echten Gerät am Teleskop folgen.*
-
-<!--
-  Fotos nach docs/images/photos/ legen und hier einbinden, z. B.:
-  <p align="center">
-    <img src="docs/images/photos/companion-am-teleskop.jpg" width="48%" alt="Companion am Teleskop">
-    <img src="docs/images/photos/companion-nahaufnahme.jpg" width="48%" alt="Nahaufnahme Display">
-  </p>
--->
+<p align="center">
+  <img src="docs/images/photos/companion-am-teleskop.jpg" width="60%" alt="Der fertige Companion im gedruckten Gehäuse am Teleskop, Systemstatus mit allen Geräten OK">
+</p>
+<p align="center"><sub>Der fertige Companion im gedruckten Gehäuse am Teleskop – Systemstatus, alle Geräte verbunden.</sub></p>
 
 ## 🧩 So funktioniert's
 
