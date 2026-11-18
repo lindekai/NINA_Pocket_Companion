@@ -17,6 +17,7 @@
 - Mockups: Info-Seite auf v0.3 aktualisiert, neue Bilder für den Nachtmodus (Session, Höhenverlauf) und den Helligkeitsbalken. `render_mockups.py` bildet dazu die Rot-Umrechnung und den Balken der Firmware nach.
 - Gehäuse-README: Draufsicht auf das USB-Ende, die zeigt, wie `BTN_FROM_USB`, `USB_OUT` und `USB_LEN` gemessen werden.
 - README: Foto vom fertigen Companion im gedruckten Gehäuse am Teleskop im Abschnitt „Im Einsatz“.
+- README: Abschnitt „Autor“ durch „Credits“ ersetzt, mit Dank an die Community (Dark Matters Discord) und die verwendete Software.
 
 ## v0.3 – November 2026
 

@@ -264,9 +264,11 @@ Das Skript liest die Schrift aus der installierten Adafruit GFX Library und schr
 
 Alle Änderungen stehen im [CHANGELOG](CHANGELOG.md).
 
-## 👤 Autor
+## 🙏 Credits
 
-**Kai Linde** – [github.com/lindekai](https://github.com/lindekai)
+- **Autor:** Kai Linde – [github.com/lindekai](https://github.com/lindekai)
+- **Community:** Dark Matters Discord
+- **Software:** [N.I.N.A.](https://nighttime-imaging.eu/) mit [Advanced API](https://github.com/christian-photo/ninaAPI), [Adafruit GFX](https://github.com/adafruit/Adafruit-GFX-Library) und [ST7789](https://github.com/adafruit/Adafruit-ST7735-Library), [ArduinoJson](https://arduinojson.org), [manifold3d](https://github.com/elalish/manifold) für das Gehäuse
 
 Fragen, Ideen oder Fotos von deinem Setup? Gerne als [Issue](https://github.com/lindekai/NINA_Pocket_Companion/issues).
 
