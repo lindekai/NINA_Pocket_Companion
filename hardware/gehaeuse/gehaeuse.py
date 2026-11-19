@@ -47,9 +47,10 @@ BTN_GAP = 0.15      # air between pad and button top - less travel before the cl
 USB_TOP = 1.2       # top of the socket above the PCB top - measured
 USB_OUT = 2.0       # how far the socket sticks out beyond the board edge - measured
 USB_LEN = 7.0       # how far the socket reaches into the board from the board edge - measured
-# USB-C opening in the end wall, centred on the socket; open towards the lid if it reaches the rim
-USB_W, USB_H = 12.0, 6.0
-USB_NOTCH_W = 10.0  # notch right through the lid over the socket (socket ~9 mm wide)
+# USB-C opening in the end wall, centred on the socket; open towards the lid if it reaches the rim.
+# The lid has a notch of the same width right through it over the socket (socket ~9 mm wide),
+# so the opening, the notch and the gap between the lid's end stops line up.
+USB_W, USB_H = 10.0, 6.0
 # Battery 1100 mAh LiPo (measured); wider than the board, shorter than it
 BAT_L, BAT_W, BAT_T = 47.0, 29.0, 8.0
 GAP = 1.0           # foam pad between battery and the parts on the board's back
@@ -200,7 +201,7 @@ def lid():
     # run on to the end wall so the lid stays held there
     part -= box(px1 - END_ZONE, py0 - FRAME_CLR, guide_bot - 1, OUT_L + 1, py1 + FRAME_CLR, END_CLEAR)
     # end stops beyond the board edge on the USB side, left and right of the socket
-    ny0, ny1 = PCB_Y0 + PCB_W / 2 - USB_NOTCH_W / 2, PCB_Y0 + PCB_W / 2 + USB_NOTCH_W / 2
+    ny0, ny1 = PCB_Y0 + PCB_W / 2 - USB_W / 2, PCB_Y0 + PCB_W / 2 + USB_W / 2
     for y0, y1 in ((sk_y0, ny0), (ny1, sk_y1)):
         part += box(px1 + STOP_CLR, y0, guide_bot, sk_x1, y1, z0 + 0.01)
     # display window with chamfer on the top face
