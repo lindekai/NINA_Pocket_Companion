@@ -59,6 +59,7 @@ END_STOP = 1.5      # room for a stop of the lid at the board end opposite the U
 # Case
 CLR = 0.3           # clearance board <-> wall
 FRAME_CLR = 0.15    # clearance board <-> guides and stops of the lid (snug, so the board cannot shift)
+STOP_CLR = 0.6      # clearance board <-> the stops at both board ends (lengthwise; 0.15 was too tight)
 WALL, FLOOR, LID_T = 1.6, 1.2, 1.4
 R_OUT = 3.0         # outer corner radius
 FIT = 0.15          # lid skirt clearance per side
@@ -186,7 +187,7 @@ def lid():
     assert guide_bot > FLOOR + BAT_T + GAP + 0.3, "lid guides reach down to the battery - reduce GUIDE_DEPTH"
     for g in (box(sk_x0, sk_y0, guide_bot, sk_x1, py0 - FRAME_CLR, z0),
               box(sk_x0, py1 + FRAME_CLR, guide_bot, sk_x1, sk_y1, z0),
-              box(sk_x0, sk_y0, guide_bot, px0 - FRAME_CLR, sk_y1, z0)):  # end stop, see END_STOP
+              box(sk_x0, sk_y0, guide_bot, px0 - STOP_CLR, sk_y1, z0)):  # end stop, see END_STOP
         bb = g.bounding_box()
         if min(bb[3] - bb[0], bb[4] - bb[1]) >= 0.8:
             skirt += g
@@ -201,7 +202,7 @@ def lid():
     # end stops beyond the board edge on the USB side, left and right of the socket
     ny0, ny1 = PCB_Y0 + PCB_W / 2 - USB_NOTCH_W / 2, PCB_Y0 + PCB_W / 2 + USB_NOTCH_W / 2
     for y0, y1 in ((sk_y0, ny0), (ny1, sk_y1)):
-        part += box(px1 + FRAME_CLR, y0, guide_bot, sk_x1, y1, z0 + 0.01)
+        part += box(px1 + STOP_CLR, y0, guide_bot, sk_x1, y1, z0 + 0.01)
     # display window with chamfer on the top face
     wx0 = PCB_X0 + WIN_CX - WIN_L / 2
     wy0 = PCB_Y0 + PCB_W / 2 - WIN_W / 2
