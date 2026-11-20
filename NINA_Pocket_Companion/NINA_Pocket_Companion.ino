@@ -17,6 +17,8 @@
 #include <lwip/sockets.h>
 #include <time.h>
 #include <math.h>
+#include <esp_sleep.h>
+#include <driver/gpio.h>
 #include "companion_logic.h"
 
 // ------------------ CONFIGURE HERE ------------------
@@ -49,6 +51,9 @@ const uint32_t POLL_MS = 8000;
 // The first key press only wakes the display.
 const uint8_t DISPLAY_TIMEOUT_MIN = 5;
 const uint32_t POLL_MS_DISPLAY_OFF = 30000; // slower polling while the display is off
+// Deep sleep after this many minutes without a key press (0 = never), also during a
+// session. Holding the right key for 5 s sends it to sleep at any time and wakes it again.
+const uint8_t DEEP_SLEEP_MIN = 10;
 const bool WAKE_ON_EVENTS = true;           // wake on sequence end, connection loss, low battery
 const bool BATTERY_MONITOR = true;          // LiPo voltage via the board's divider on GPIO34
 // Backlight PWM values (0-255) for the 5 brightness levels; a long press on the
@@ -94,6 +99,7 @@ bool batUsb=false, batLowWarned=false;
 bool nightMode=false;
 uint8_t briDay=DEFAULT_LEVEL_DAY, briNight=DEFAULT_LEVEL_NIGHT;
 uint32_t overlayUntil=0; // brightness bar in the footer until this millis(), 0 = off
+uint8_t sleepCount=0;    // seconds left while the right key is held for deep sleep, 0 = off
 // Declared here: the Arduino IDE generates no prototypes for functions with default arguments.
 void wakeDisplay(int target=-1);
 
@@ -453,6 +459,7 @@ void header(String title) {
 bool overlayActive(){return overlayUntil&&(int32_t)(overlayUntil-millis())>0;}
 void footer(const String &left="WEITER",const String &right="MENU") {
  line(216);
+ if(sleepCount){textAt(6,224,"AUS IN "+String(sleepCount)+" S",YELLOW);return;}
  if(overlayActive()){
   textAt(6,224,"HELL",GRAY);
   for(int i=0;i<5;i++){
@@ -616,6 +623,7 @@ void drawAltitude(){
  textAt(5,205,"MER=Transit,kein Flip",YELLOW);
  footer("WEITER","MENU");
 }
+String minutesText(uint8_t m){return m?String(m)+" min":"nie";}
 void drawAbout(){
  header("INFO");
  textAt(6,30,"N.I.N.A. POCKET v0.3",CYAN);
@@ -628,8 +636,8 @@ void drawAbout(){
  if(scanning)textAt(6,137,"Suche... "+String(scanPercent())+"%",YELLOW);
  else textAt(6,137,ninaHost.length()?ninaHost:"nicht gefunden",ninaHost.length()?WHITE:RED);
  textAt(6,149,"Port: "+String(NINA_PORT));
- textAt(6,167,"Display aus:",GRAY);
- textAt(6,179,DISPLAY_TIMEOUT_MIN?"nach "+String(DISPLAY_TIMEOUT_MIN)+" min":"nie");
+ textAt(6,167,"Display aus / Schlaf:",GRAY);
+ textAt(6,179,minutesText(DISPLAY_TIMEOUT_MIN)+" / "+minutesText(DEEP_SLEEP_MIN));
  textAt(6,194,"Hell:",GRAY);
  textAt(42,194,"Tag "+String(briDay)+" Nacht "+String(briNight));
  textAt(6,204,"Nachtmodus:",GRAY);
@@ -710,13 +718,59 @@ void render(){
  case OBJECT:drawObject();break;case ALTITUDE:drawAltitude();break;case ABOUT:drawAbout();break;
  default:break;
  }
- if(canvas){
-  uint16_t *buf=canvas->getBuffer();
-  // Every page redraws the whole canvas, so it can be converted in place.
-  if(nightMode)for(uint32_t i=0;i<(uint32_t)W*H;i++)buf[i]=nightPixel(buf[i]);
-  tft.drawRGBBitmap(0,0,buf,W,H);
- }
+ present();
  dirty=false;lastDraw=millis();
+}
+// Pushes the canvas to the display (nothing to do when drawing directly on the TFT).
+void present(){
+ if(!canvas)return;
+ uint16_t *buf=canvas->getBuffer();
+ // Every page redraws the whole canvas, so it can be converted in place.
+ if(nightMode)for(uint32_t i=0;i<(uint32_t)W*H;i++)buf[i]=nightPixel(buf[i]);
+ tft.drawRGBBitmap(0,0,buf,W,H);
+}
+// ---------- Deep sleep ----------
+// Only the right key (GPIO35, an RTC pin with the board's pull-up) wakes the ESP32;
+// setup() then starts only if the key stays held for SLEEP_HOLD_MS.
+void deepSleep(){
+ if(WiFi.getMode()!=WIFI_OFF){WiFi.disconnect(true);WiFi.mode(WIFI_OFF);}
+ // keep backlight and battery divider off while asleep
+ pinMode(TFT_BL,OUTPUT);digitalWrite(TFT_BL,LOW);
+ pinMode(ADC_EN,OUTPUT);digitalWrite(ADC_EN,LOW);
+ gpio_hold_en((gpio_num_t)TFT_BL);gpio_hold_en((gpio_num_t)ADC_EN);
+ gpio_deep_sleep_hold_en();
+ esp_sleep_enable_ext0_wakeup((gpio_num_t)BTN_PAGE,0);
+ esp_deep_sleep_start();
+}
+// byKey: the right key is still held - say so and wait for its release,
+// otherwise it would wake the ESP32 again right away.
+void sleepNow(bool byKey){
+ if(byKey&&displayOn){
+  gfx->fillScreen(BG);
+  textAt(6,80,"SCHLAFEN",CYAN,2);
+  textAt(6,105,"Taste loslassen",WHITE);
+  textAt(6,130,"Einschalten:",GRAY);
+  textAt(6,142,"rechte Taste 5 s",GRAY);
+  textAt(6,154,"gedrueckt halten",GRAY);
+  present();
+ }
+ if(byKey){while(digitalRead(BTN_PAGE)==LOW)delay(10);delay(100);}
+ analogWrite(TFT_BL,0);
+ tft.enableSleep(true);
+ deepSleep();
+}
+// Woken by the right key: true once it has been held for SLEEP_HOLD_MS since the
+// wake-up, false as soon as it is released (a knock in the pocket). Display stays dark.
+bool keyHeldAfterWake(){
+ pinMode(BTN_PAGE,INPUT);
+ uint32_t released=0;
+ while(millis()<SLEEP_HOLD_MS){
+  if(digitalRead(BTN_PAGE)==LOW)released=0;
+  else if(!released)released=millis()|1;
+  else if(millis()-released>50)return false;
+  delay(10);
+ }
+ return true;
 }
 void shortPress(bool nextButton){
  if(page==HOME){
@@ -748,6 +802,9 @@ void handleKeys(){
  bool next=nextKey.update(digitalRead(BTN_NEXT)==LOW,now);
  bool pg=pageKey.update(digitalRead(BTN_PAGE)==LOW,now);
  Gesture g=gestures.update(next,pg,now,displayOn);
+ uint8_t count=sleepCountdown(gestures.sleepHeld(now));
+ if(count!=sleepCount){sleepCount=count;dirty=true;}
+ if(g==G_LONG_PAGE){sleepNow(true);return;}
  if(g==G_NONE)return;
  if(g==G_WAKE){wakeDisplay();return;} // first press only wakes the display
  lastActivity=now;
@@ -761,6 +818,9 @@ void handleKeys(){
 }
 void setup(){
  Serial.begin(115200);
+ bool woken=esp_sleep_get_wakeup_cause()==ESP_SLEEP_WAKEUP_EXT0;
+ if(woken&&!keyHeldAfterWake())deepSleep(); // back to sleep, the pins are still held
+ gpio_deep_sleep_hold_dis();gpio_hold_dis((gpio_num_t)TFT_BL);gpio_hold_dis((gpio_num_t)ADC_EN);
  prefs.begin("nina",false);
  loadSettings();
  pinMode(TFT_BL,OUTPUT);applyBacklight();
@@ -774,6 +834,8 @@ void setup(){
  if(!canvas->getBuffer()){delete canvas;canvas=nullptr;}
  tft.fillScreen(BG);textAt(6,30,"N.I.N.A. POCKET",CYAN,1);
  textAt(6,55,"Start...",GRAY);
+ // the start screen is the signal to let go of the key that woke the companion
+ while(woken&&digitalRead(BTN_PAGE)==LOW)delay(10);
  if(!DEMO_MODE){
   WiFi.mode(WIFI_STA);WiFi.begin(WIFI_SSID,WIFI_PASS);
   configTime(0,0,"pool.ntp.org","time.google.com"); // UTC internally
@@ -809,6 +871,7 @@ void loop(){
  static uint32_t lastBat=0;
  if(BATTERY_MONITOR&&millis()-lastBat>=2000){lastBat=millis();readBattery();}
  if(displayOn&&DISPLAY_TIMEOUT_MIN&&millis()-lastActivity>=DISPLAY_TIMEOUT_MIN*60000UL)sleepDisplay();
+ if(DEEP_SLEEP_MIN&&millis()-lastActivity>=DEEP_SLEEP_MIN*60000UL)sleepNow(false);
  if(overlayUntil&&!overlayActive()){overlayUntil=0;dirty=true;} // hide the brightness bar
  if(displayOn&&(dirty||(page==ALTITUDE&&millis()-lastDraw>30000)))render();
  delay(15);

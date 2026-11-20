@@ -55,6 +55,42 @@ static void testWake(){
  CHECK(g.update(true,true,2000,false)==G_WAKE);  // "both" while dark only wakes
  CHECK(g.update(false,false,2100,true)==G_NONE);
 }
+static void testLongPage(){
+ GestureDetector g;
+ CHECK(g.update(false,true,0,true)==G_NONE);
+ CHECK(g.sleepHeld(999)==999);
+ CHECK(g.update(false,true,4999,true)==G_NONE);
+ CHECK(g.update(false,true,5000,true)==G_LONG_PAGE);
+ CHECK(g.sleepHeld(5100)==0);
+ CHECK(g.update(false,true,9000,true)==G_NONE);  // fires once
+ CHECK(g.update(false,false,9100,true)==G_NONE); // release does nothing
+ // also after the press that woke the display
+ CHECK(g.update(false,true,10000,false)==G_WAKE);
+ CHECK(g.update(false,true,15000,true)==G_LONG_PAGE);
+ CHECK(g.update(false,false,15100,true)==G_NONE);
+ // the left key cancels it: "both" instead, no sleep
+ CHECK(g.update(false,true,20000,true)==G_NONE);
+ CHECK(g.update(true,true,21000,true)==G_BOTH);
+ CHECK(g.sleepHeld(21000)==0);
+ CHECK(g.update(false,true,26000,true)==G_NONE);
+ CHECK(g.update(false,false,26100,true)==G_NONE);
+ // started with the left key: no sleep
+ CHECK(g.update(true,false,30000,true)==G_NONE);
+ CHECK(g.update(true,false,30800,true)==G_LONG_NEXT);
+ CHECK(g.update(false,true,31000,true)==G_NONE);
+ CHECK(g.update(false,true,36000,true)==G_NONE);
+ CHECK(g.update(false,false,36100,true)==G_NONE);
+}
+static void testSleepCountdown(){
+ CHECK(sleepCountdown(0)==0);
+ CHECK(sleepCountdown(999)==0);
+ CHECK(sleepCountdown(1000)==4);
+ CHECK(sleepCountdown(1001)==4);
+ CHECK(sleepCountdown(3999)==2);
+ CHECK(sleepCountdown(4000)==1);
+ CHECK(sleepCountdown(4999)==1);
+ CHECK(sleepCountdown(5000)==0);
+}
 static void testNightPixel(){
  CHECK(nightPixel(0xFFFF)==0xF800); // WHITE -> full red
  CHECK(nightPixel(0x0006)==0x0000); // BG -> black
@@ -74,7 +110,7 @@ static void testLevels(){
  CHECK(validLevel(255,2)==2);
 }
 int main(){
- testDebounce();testShortPresses();testBoth();testLongNext();testWake();testNightPixel();testLevels();
+ testDebounce();testShortPresses();testBoth();testLongNext();testWake();testLongPage();testSleepCountdown();testNightPixel();testLevels();
  if(failures){std::printf("%d failure(s)\n",failures);return 1;}
  std::printf("all tests passed\n");return 0;
 }

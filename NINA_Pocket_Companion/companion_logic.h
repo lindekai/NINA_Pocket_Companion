@@ -3,8 +3,9 @@
 #pragma once
 #include <stdint.h>
 
-enum Gesture : uint8_t { G_NONE, G_SHORT_NEXT, G_SHORT_PAGE, G_BOTH, G_LONG_NEXT, G_WAKE };
+enum Gesture : uint8_t { G_NONE, G_SHORT_NEXT, G_SHORT_PAGE, G_BOTH, G_LONG_NEXT, G_WAKE, G_LONG_PAGE };
 const uint32_t LONG_PRESS_MS=800;
+const uint32_t SLEEP_HOLD_MS=5000; // right key held alone: deep sleep (and wake-up from it)
 
 // Takes a new raw key state only after it differs for more than 40 ms since the last change.
 struct Debounce {
@@ -19,13 +20,15 @@ struct Debounce {
 // Turns the debounced state of both keys into gestures. A short press fires on
 // release; "both" and "long" fire while held, and their release does nothing.
 // While the display is off, the first press of a gesture only wakes it.
+// Holding the right key alone for SLEEP_HOLD_MS fires G_LONG_PAGE, even after a wake;
+// released earlier, it is still a short press.
 struct GestureDetector {
- bool active=false,fired=false,startedNext=false;
+ bool active=false,fired=false,startedNext=false,sleepArmed=false;
  uint32_t start=0;
  Gesture update(bool next,bool pageKey,uint32_t now,bool displayOn){
   if(!active){
    if(!next&&!pageKey)return G_NONE;
-   active=true;fired=false;startedNext=next;start=now;
+   active=true;fired=false;startedNext=next;sleepArmed=!next;start=now;
    if(!displayOn){fired=true;return G_WAKE;}
   }
   if(!next&&!pageKey){
@@ -33,12 +36,19 @@ struct GestureDetector {
    if(fired)return G_NONE;
    return startedNext?G_SHORT_NEXT:G_SHORT_PAGE;
   }
+  if(next)sleepArmed=false;
+  if(sleepArmed&&now-start>=SLEEP_HOLD_MS){sleepArmed=false;fired=true;return G_LONG_PAGE;}
   if(fired)return G_NONE;
   if(next&&pageKey){fired=true;return G_BOTH;}
   if(next&&startedNext&&now-start>=LONG_PRESS_MS){fired=true;return G_LONG_NEXT;}
   return G_NONE;
  }
+ // How long the right key has been held towards G_LONG_PAGE, 0 if it is not.
+ uint32_t sleepHeld(uint32_t now) const {return active&&sleepArmed?now-start:0;}
 };
+
+// Whole seconds left until G_LONG_PAGE, shown after the first second; 0 = no countdown.
+inline uint8_t sleepCountdown(uint32_t held){return held>=1000&&held<SLEEP_HOLD_MS?(SLEEP_HOLD_MS-held+999)/1000:0;}
 
 // Night mode: RGB565 -> red only, keeping the perceived brightness.
 inline uint16_t nightPixel(uint16_t c){

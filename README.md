@@ -28,7 +28,7 @@
 | 📈 **Höhenverlauf** | ±4 Stunden um jetzt, berechnet aus RA/Dec der Montierung und deinem Standort – inkl. Meridiandurchgang. |
 | 🧊 **Ehrliche Anzeige** | Fehlende Werte erscheinen als `--`. Ist N.I.N.A. kurz weg, bleiben die letzten Werte sichtbar und sind mit `ALT` markiert. |
 | ⚡ **Ruhiges, gut lesbares Bild** | Große Schrift für alle Werte, flackerfreier Bildaufbau. Die Tasten bleiben auch bei Netzproblemen bedienbar. |
-| 🔋 **Akku & Stromsparen** | Akkusymbol mit Füllstand in der Kopfzeile. Das Display geht nach einstellbarer Zeit aus und wacht per Tastendruck – oder von selbst bei wichtigen Ereignissen – wieder auf. |
+| 🔋 **Akku & Stromsparen** | Akkusymbol mit Füllstand in der Kopfzeile. Das Display geht nach einstellbarer Zeit aus und wacht per Tastendruck – oder von selbst bei wichtigen Ereignissen – wieder auf. Nach 10 Minuten ohne Tastendruck oder per langem Druck auf die rechte Taste geht der Companion in den Deep Sleep. |
 | 🌙 **Nachtmodus** | Beide Tasten gleichzeitig: alles rot auf Schwarz und stark gedimmt – schont die Dunkeladaption am Teleskop. Helligkeit in 5 Stufen, für Tag und Nacht getrennt gespeichert. |
 | 🧰 **Minimal-Hardware** | Ein LilyGO T-Display, optional ein Akku – Installation komplett über die Arduino IDE, [Gehäuse zum Drucken](hardware/gehaeuse) inklusive. |
 
@@ -130,6 +130,7 @@ Alles Weitere steht oben im Sketch im Block `CONFIGURE HERE`:
 | `POLL_MS` | Abfrageintervall in Millisekunden (Standard 8000) |
 | `DISPLAY_TIMEOUT_MIN` | Display nach so vielen Minuten ohne Tastendruck ausschalten (Standard 5, `0` = immer an) |
 | `BRIGHTNESS_DAY`, `BRIGHTNESS_NIGHT` | PWM-Werte (0–255) der 5 Helligkeitsstufen für Tag- und Nachtmodus |
+| `DEEP_SLEEP_MIN` | Deep Sleep nach so vielen Minuten ohne Tastendruck, auch während einer Session (Standard 10, `0` = nie) |
 | `POLL_MS_DISPLAY_OFF` | Abfrageintervall bei ausgeschaltetem Display (Standard 30000) – spart Strom |
 | `WAKE_ON_EVENTS` | Display bei Sequenzende, Verbindungsverlust oder leerem Akku selbst einschalten (Standard `true`) |
 | `BATTERY_MONITOR` | Akkumessung an GPIO34 (Standard `true`; auf `false` setzen, wenn kein Akku angeschlossen ist) |
@@ -161,6 +162,7 @@ Kurze Tastendrücke wirken beim **Loslassen**. Dazu kommen zwei Gesten, die auf 
 |---|---|
 | **Beide Tasten** gleichzeitig | Nachtmodus an/aus |
 | **Links lang** (0,8 s) | Helligkeit eine Stufe weiter (1 → 5 → 1), kurz als Balken in der Fußzeile |
+| **Rechts lang** (5 s) | Deep Sleep; ab der ersten Sekunde zählt die Fußzeile herunter (`AUS IN 4 S` …). Wer vorher loslässt, hat kurz gedrückt. |
 
 ### 🌙 Nachtmodus
 
@@ -180,6 +182,17 @@ Mit `WAKE_ON_EVENTS` schaltet sich das Display bei wichtigen Ereignissen selbst 
 | Sequenz beendet oder angehalten | Session |
 | N.I.N.A. zweimal in Folge nicht erreichbar | Systemstatus |
 | Akku bei 10 % oder weniger | Info |
+
+### 😴 Deep Sleep
+
+Nach `DEEP_SLEEP_MIN` Minuten ohne Tastendruck (Standard 10) oder wenn die **rechte Taste 5 s** gehalten wird, schaltet der Companion Display, Hintergrundbeleuchtung, WLAN und Akkumessung ab und geht in den Deep Sleep. Das gilt auch während einer laufenden Session – im Schlaf gibt es keine Benachrichtigungen. Weckt ein Ereignis das Display, beginnen die 10 Minuten neu.
+
+Beim langen Druck erscheint „SCHLAFEN – Taste loslassen“; eingeschlafen wird erst nach dem Loslassen.
+
+**Einschalten:** rechte Taste **5 s gedrückt halten**. Das Display bleibt dabei dunkel; sobald der Startbildschirm erscheint, loslassen. Ein kurzer Druck, etwa in der Tasche, schickt ihn gleich wieder schlafen. Danach verbindet er sich neu mit WLAN und N.I.N.A. (die zuletzt gefundene Adresse wird zuerst geprüft). Reset oder Anstecken an USB starten ihn wie gewohnt.
+
+> [!NOTE]
+> Auch im Deep Sleep zieht das T-Display-Board über Spannungsregler und USB-Chip noch etwas Strom – je nach Board-Revision einige Hundert µA. Für lange Lagerung den Akku abstecken.
 
 ### 🔋 Akkuanzeige
 
