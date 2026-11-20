@@ -7,7 +7,7 @@
 - Rechte Taste 5 s halten schickt ihn jederzeit schlafen. Ab der ersten Sekunde zählt die Fußzeile herunter (`AUS IN 4 S` …), losgelassen vorher bleibt es ein kurzer Druck. Eingeschlafen wird erst nach dem Loslassen.
 - Aufwachen nur mit der rechten Taste, die dazu 5 s gehalten werden muss; ein kurzer Druck schickt ihn gleich wieder schlafen.
 - Neue Geste `G_LONG_PAGE` in `companion_logic.h` mit Host-Tests. Die Info-Seite zeigt „Display aus / Schlaf“.
-- Auf dem T-Display geprüft: Einschlafen und Aufwachen per rechter Taste.
+- Auf dem T-Display geprüft: Einschlafen und Aufwachen per rechter Taste sowie das automatische Einschlafen nach 10 Minuten.
 
 ### Gehäuse
 - USB-C-Buchse nachgemessen: `USB_TOP` 1,2 mm (vorher geschätzt 2,0), `USB_OUT` 2,0 mm (4,0), `USB_LEN` 7,0 mm (7,4). `PCB_L` ist damit 50,0 mm, die Gesamtlänge bleibt 52 mm.
