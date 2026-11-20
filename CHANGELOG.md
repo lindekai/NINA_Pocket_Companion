@@ -21,11 +21,13 @@
 - Deckel: Die Tasten gingen zu schwer und trafen den Taster schlecht. Die Zungen sind jetzt 14 statt 9 mm lang, reichen 2 mm weiter zur USB-Seite und sind von unten auf 1,0 mm ausgedünnt (vorher volle 1,4 mm). Der alte Stößel war nur 0,1 mm hoch und wurde praktisch nicht gedruckt; jetzt sitzt mittig über dem Taster ein Kissen (Ø 3 mm), das bis auf 0,15 mm an ihn heranreicht. Neue Parameter: `BTN_TONGUE_L`, `BTN_TONGUE_W`, `BTN_TONGUE_TIP`, `BTN_TONGUE_T`, `BTN_PAD_R`, `BTN_GAP`.
 - Deckel: Die Platine passte der Länge nach nicht zwischen die Anschläge. Querleiste und die beiden Anschläge an der USB-Seite haben jetzt je 0,6 mm Spiel zur Platinenkante (`STOP_CLR`, vorher 0,15 mm wie `FRAME_CLR`). Getestet: knapp, aber passt.
 - Unterteil: Die USB-Öffnung in der Stirnwand war 12 mm breit, der Ausschnitt im Deckel und der Raum zwischen dessen Anschlägen nur 10 mm. Der Deckel stand dort je Seite 1 mm über. Die Wandöffnung ist jetzt ebenfalls 10 mm breit (`USB_W`, vorher 12 mm); `USB_NOTCH_W` entfällt, der Deckel nutzt `USB_W`. Der Stecker musste schon bisher zwischen den 10 mm auseinanderliegenden Anschlägen durch.
+- Probedruck mit allen Änderungen: Platine, Deckel und USB-Öffnung passen.
 
 ### Dokumentation
 - Mockups: Info-Seite auf v0.3 aktualisiert, neue Bilder für den Nachtmodus (Session, Höhenverlauf) und den Helligkeitsbalken. `render_mockups.py` bildet dazu die Rot-Umrechnung und den Balken der Firmware nach.
 - Gehäuse-README: Draufsicht auf das USB-Ende, die zeigt, wie `BTN_FROM_USB`, `USB_OUT` und `USB_LEN` gemessen werden.
 - README: Foto vom fertigen Companion im gedruckten Gehäuse am Teleskop im Abschnitt „Im Einsatz“.
+- README: Gesten, Konfiguration, Info-Seite, Teststand und Roadmap um den Deep Sleep ergänzt; Probedruck und Foto in der Roadmap abgehakt. Gehäuse-README: Probedruck vermerkt, Hinweis zum fehlenden Schalter verweist auf den Deep Sleep.
 - README: Abschnitt „Autor“ durch „Credits“ ersetzt, mit Dank an die Community (Dark Matters Discord) und die verwendete Software.
 
 ## v0.3 – November 2026

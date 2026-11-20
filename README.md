@@ -129,8 +129,8 @@ Alles Weitere steht oben im Sketch im Block `CONFIGURE HERE`:
 | `DEMO_MODE` | `true` zeigt Demodaten ohne Netzwerk |
 | `POLL_MS` | Abfrageintervall in Millisekunden (Standard 8000) |
 | `DISPLAY_TIMEOUT_MIN` | Display nach so vielen Minuten ohne Tastendruck ausschalten (Standard 5, `0` = immer an) |
-| `BRIGHTNESS_DAY`, `BRIGHTNESS_NIGHT` | PWM-Werte (0–255) der 5 Helligkeitsstufen für Tag- und Nachtmodus |
 | `DEEP_SLEEP_MIN` | Deep Sleep nach so vielen Minuten ohne Tastendruck, auch während einer Session (Standard 10, `0` = nie) |
+| `BRIGHTNESS_DAY`, `BRIGHTNESS_NIGHT` | PWM-Werte (0–255) der 5 Helligkeitsstufen für Tag- und Nachtmodus |
 | `POLL_MS_DISPLAY_OFF` | Abfrageintervall bei ausgeschaltetem Display (Standard 30000) – spart Strom |
 | `WAKE_ON_EVENTS` | Display bei Sequenzende, Verbindungsverlust oder leerem Akku selbst einschalten (Standard `true`) |
 | `BATTERY_MONITOR` | Akkumessung an GPIO34 (Standard `true`; auf `false` setzen, wenn kein Akku angeschlossen ist) |
@@ -156,7 +156,7 @@ Fortschritt und gefundene Adresse siehst du im Hauptmenü und auf der Seite **In
 | **Hauptmenü** | Cursor weiter | Auswahl öffnen |
 | **Unterseiten** | Nächste Seite | Zurück ins Hauptmenü |
 
-Kurze Tastendrücke wirken beim **Loslassen**. Dazu kommen zwei Gesten, die auf jeder Seite funktionieren:
+Kurze Tastendrücke wirken beim **Loslassen**. Dazu kommen drei Gesten, die auf jeder Seite funktionieren:
 
 | Geste | Wirkung |
 |---|---|
@@ -185,14 +185,14 @@ Mit `WAKE_ON_EVENTS` schaltet sich das Display bei wichtigen Ereignissen selbst 
 
 ### 😴 Deep Sleep
 
-Nach `DEEP_SLEEP_MIN` Minuten ohne Tastendruck (Standard 10) oder wenn die **rechte Taste 5 s** gehalten wird, schaltet der Companion Display, Hintergrundbeleuchtung, WLAN und Akkumessung ab und geht in den Deep Sleep. Das gilt auch während einer laufenden Session – im Schlaf gibt es keine Benachrichtigungen. Weckt ein Ereignis das Display, beginnen die 10 Minuten neu.
+Nach `DEEP_SLEEP_MIN` Minuten ohne Tastendruck (Standard 10) oder wenn die **rechte Taste 5 s** gehalten wird, schaltet der Companion Display, Hintergrundbeleuchtung, WLAN und Akkumessung ab und geht in den Deep Sleep. Das gilt auch während einer laufenden Session – im Schlaf gibt es keine Benachrichtigungen. Weckt ein Ereignis das Display, beginnt die Wartezeit neu.
 
 Beim langen Druck erscheint „SCHLAFEN – Taste loslassen“; eingeschlafen wird erst nach dem Loslassen.
 
 **Einschalten:** rechte Taste **5 s gedrückt halten**. Das Display bleibt dabei dunkel; sobald der Startbildschirm erscheint, loslassen. Ein kurzer Druck, etwa in der Tasche, schickt ihn gleich wieder schlafen. Danach verbindet er sich neu mit WLAN und N.I.N.A. (die zuletzt gefundene Adresse wird zuerst geprüft). Reset oder Anstecken an USB starten ihn wie gewohnt.
 
 > [!NOTE]
-> Auch im Deep Sleep zieht das T-Display-Board über Spannungsregler und USB-Chip noch etwas Strom – je nach Board-Revision einige Hundert µA. Für lange Lagerung den Akku abstecken.
+> Auch im Deep Sleep zieht das T-Display-Board über Spannungsregler und USB-Seriell-Chip noch etwas Strom; gemessen ist der Wert noch nicht. Für lange Lagerung den Akku abstecken.
 
 ### 🔋 Akkuanzeige
 
@@ -210,7 +210,7 @@ Das T-Display misst die Akkuspannung über einen Spannungsteiler an GPIO34 (eing
 - **Guiding** – Verbindung, Status des Guiders (z. B. `Guiding`, `Stopped`) und Gesamt-RMS in Bogensekunden. Der RMS erscheint nur, solange geguidet wird – ein `0.00″` bei gestopptem Guiding wäre irreführend.
 - **Filterrad** – aktiver Filter.
 - **Objekt** – Ziel, Höhe, Azimut, RA und Dec der Montierung.
-- **Info** – Version, Akku (Spannung und Ladestand), WLAN-Adresse, gefundener N.I.N.A.-PC und Display-Timeout.
+- **Info** – Version, Akku (Spannung und Ladestand), WLAN-Adresse, gefundener N.I.N.A.-PC, Display-Timeout und Deep-Sleep-Zeit.
 - **Höhe** – Kurve ±4 Stunden um jetzt; grüne Markierung für die aktuelle Position, gestrichelte gelbe Linie für den Meridiandurchgang.
 
 **Lesbarkeit:** Werte und Seitentitel stehen in doppelter Schriftgröße. Längere Texte (über 10 Zeichen) erscheinen klein, aber vollständig bis 21 Zeichen. Umlaute aus N.I.N.A. werden umschrieben (ü → ue), weil die Display-Schrift kein UTF-8 kennt.
@@ -248,7 +248,7 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 - Statusabfragen blockieren kurz (Verbindungs-Timeout 1,5 s). Ist N.I.N.A. nicht erreichbar, werden die übrigen Abfragen der Runde übersprungen.
 - Keine Online-Bilder oder Wetterdaten.
 - Der Akku-Ladestand ist eine Schätzung aus der Spannung, keine Coulomb-Zählung. Ob geladen wird oder nur USB steckt, lässt sich mit der Board-Hardware nicht unterscheiden.
-- Läuft auf einem LilyGO T-Display (`ESP32 Dev Module`, ESP32-Core 3.3.12). Auf dem Gerät geprüft: Anzeige, Verbindung zu N.I.N.A., Akkuanzeige mit und ohne USB sowie Display-Timeout. Ein Live-Betrieb über eine ganze Nacht steht noch aus. Nachtmodus, Helligkeitsstufen und Tastengesten (v0.3) sind ebenfalls auf dem Gerät geprüft.
+- Läuft auf einem LilyGO T-Display (`ESP32 Dev Module`, ESP32-Core 3.3.12). Auf dem Gerät geprüft: Anzeige, Verbindung zu N.I.N.A., Akkuanzeige mit und ohne USB sowie Display-Timeout. Ein Live-Betrieb über eine ganze Nacht steht noch aus. Nachtmodus, Helligkeitsstufen und Tastengesten (v0.3) sind ebenfalls auf dem Gerät geprüft, ebenso Einschlafen und Aufwachen per rechter Taste.
 
 ## 🗺️ Ideen für später
 
@@ -257,12 +257,14 @@ Dokumentation: [N.I.N.A. Advanced API](https://github.com/christian-photo/ninaAP
 - [ ] Echte Flip-Markierung aus den N.I.N.A.-Einstellungen
 - [x] Akkuanzeige und Display-Timeout (v0.2)
 - [x] Nachtmodus und Helligkeitssteuerung (v0.3)
-- [ ] Laufzeit mit Akku messen und dokumentieren
+- [x] Deep Sleep nach Inaktivität oder per Taste
+- [ ] Laufzeit mit Akku und Ruhestrom im Deep Sleep messen und dokumentieren
 - [ ] Asynchroner API-Client
-- [ ] Fotos vom Gerät im Einsatz
+- [x] Fotos vom Gerät im Einsatz
 - [x] Gehäuse zum 3D-Drucken ([`hardware/gehaeuse`](hardware/gehaeuse))
 - [x] Gehäuse an der USB-Seite nachmessen (Buchse, Taster)
-- [ ] Gehäuse Probe drucken und restliche Maße prüfen (`FRONT_H`, `BACK_H`, `WIN_CX`, `BTN_H`)
+- [x] Gehäuse Probe drucken – passt
+- [ ] Restliche Gehäusemaße nachmessen (`FRONT_H`, `BACK_H`, `WIN_CX`, `BTN_H`)
 
 ## 🖼️ Mockups neu erzeugen
 

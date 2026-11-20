@@ -29,7 +29,7 @@ Zweiteiliges Gehäuse für das LilyGO T-Display (52 × 26 × 6 mm) mit einem 110
 
 ## Maße
 
-Gemessen sind Platine (52 × 26 × 6 mm, die 52 mm **mit** USB-Buchse), Akku (47 × 29 × 8 mm), die USB-C-Buchse und die Lage der Taster. `FRONT_H`, `BACK_H`, `WIN_CX` und `BTN_H` sind noch **angenommen oder aus Fotos geschätzt** und sollten vor dem Druck mit dem Messschieber geprüft werden. Alle Werte stehen oben in [`gehaeuse.py`](gehaeuse.py).
+Gemessen sind Platine (52 × 26 × 6 mm, die 52 mm **mit** USB-Buchse), Akku (47 × 29 × 8 mm), die USB-C-Buchse und die Lage der Taster. `FRONT_H`, `BACK_H`, `WIN_CX` und `BTN_H` sind noch **angenommen oder aus Fotos geschätzt**. Ein Probedruck mit den aktuellen Werten passt; wer ein anderes Board oder einen anderen Akku verwendet, sollte sie trotzdem mit dem Messschieber prüfen. Alle Werte stehen oben in [`gehaeuse.py`](gehaeuse.py).
 
 Draufsicht auf das USB-Ende (Display oben, schematisch, nicht maßstäblich). `[+]` ist die **Mitte** eines Tasters, gemessen wird parallel zur Längskante:
 
@@ -106,5 +106,5 @@ Für sehr neue Python-Versionen gibt es oft noch kein fertiges `manifold3d`-Pake
 
 ## Hinweise
 
-- Das T-Display hat **keinen Ein/Aus-Schalter**, der Akku wird also ständig entladen. Ein Schiebeschalter im Akkukabel hilft. Mit `SWITCH = True` bekommt das Unterteil dafür eine Öffnung in der Längswand; Lage und Größe sind Parameter.
+- Das T-Display hat **keinen Ein/Aus-Schalter**. Die Firmware schickt es nach 10 Minuten ohne Tastendruck oder per langem Druck auf die rechte Taste in den Deep Sleep, ganz stromlos ist es aber auch dann nicht. Für längere Pausen hilft ein Schiebeschalter im Akkukabel. Mit `SWITCH = True` bekommt das Unterteil dafür eine Öffnung in der Längswand; Lage und Größe sind Parameter.
 - LiPo-Akkus nicht quetschen: Wenn der Deckel nur schwer schließt, lieber `BAT_T` oder `GAP` erhöhen.
